@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../features/bring_list/bring_list_section.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 
@@ -11,15 +12,6 @@ class CrewScreen extends StatefulWidget {
 }
 
 class _CrewScreenState extends State<CrewScreen> {
-  final Set<int> _claimed = {0, 2};
-
-  static const _items = [
-    (Icons.soup_kitchen_rounded, 'The gumbo', 'Jordan', 'Grill master'),
-    (Icons.icecream_rounded, 'Ice & coolers', null, 'Still up for grabs'),
-    (Icons.music_note_rounded, 'Game-day playlist', 'Alex', 'Music lead'),
-    (Icons.sports_rounded, 'Cornhole', null, 'Still up for grabs'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -43,58 +35,7 @@ class _CrewScreenState extends State<CrewScreen> {
         const SizedBox(height: 20),
         _buildCrewCard(),
         const SizedBox(height: 22),
-        _sectionHeader(
-          'Who’s bringing what?',
-          '${_claimed.length} of ${_items.length} covered',
-        ),
-        const SizedBox(height: 12),
-        Card(
-          child: Column(
-            children: List.generate(_items.length, (index) {
-              final item = _items[index];
-              final claimed = _claimed.contains(index);
-              return Column(
-                children: [
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 5,
-                    ),
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFFF1EBF8),
-                      foregroundColor: AppColors.purple,
-                      child: Icon(item.$1),
-                    ),
-                    title: Text(
-                      item.$2,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    subtitle: Text(
-                      claimed ? '${item.$3} · ${item.$4}' : item.$4,
-                    ),
-                    trailing: claimed
-                        ? IconButton(
-                            onPressed: () =>
-                                setState(() => _claimed.remove(index)),
-                            icon: const Icon(
-                              Icons.check_circle_rounded,
-                              color: AppColors.success,
-                            ),
-                            tooltip: 'Unclaim item',
-                          )
-                        : OutlinedButton(
-                            onPressed: () =>
-                                setState(() => _claimed.add(index)),
-                            child: const Text('I’ll bring it'),
-                          ),
-                  ),
-                  if (index != _items.length - 1)
-                    const Divider(height: 1, indent: 68, endIndent: 14),
-                ],
-              );
-            }),
-          ),
-        ),
+        const BringListSection(),
         const SizedBox(height: 22),
         _sectionHeader('Game-day updates', '2 new'),
         const SizedBox(height: 12),
