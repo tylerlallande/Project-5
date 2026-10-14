@@ -4,9 +4,14 @@ import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.onNavigate});
+  const HomeScreen({
+    super.key,
+    required this.onNavigate,
+    required this.onOpenTailgate,
+  });
 
   final ValueChanged<int> onNavigate;
+  final ValueChanged<int> onOpenTailgate;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -187,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         backgroundColor: Colors.white.withValues(alpha: .13),
                         foregroundColor: Colors.white,
                       ),
-                      onPressed: () => widget.onNavigate(2),
+                      onPressed: () => widget.onOpenTailgate(1),
                       icon: const Icon(Icons.map_outlined),
                     ),
                   ],
@@ -202,10 +207,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildQuickActions() {
     final actions = [
-      (Icons.checklist_rounded, 'Bring list', '6 of 8 ready', 1),
-      (Icons.groups_rounded, 'Crew', '8 going', 1),
-      (Icons.location_on_rounded, 'The spot', 'Oak Grove', 2),
-      (Icons.campaign_rounded, 'Updates', '2 new', 1),
+      (
+        icon: Icons.checklist_rounded,
+        title: 'Bring list',
+        detail: '6 of 8 ready',
+        onTap: () => widget.onOpenTailgate(0),
+      ),
+      (
+        icon: Icons.groups_rounded,
+        title: 'Crew',
+        detail: '8 going',
+        onTap: () => widget.onNavigate(1),
+      ),
+      (
+        icon: Icons.location_on_rounded,
+        title: 'The spot',
+        detail: 'Oak Grove',
+        onTap: () => widget.onOpenTailgate(1),
+      ),
+      (
+        icon: Icons.campaign_rounded,
+        title: 'Updates',
+        detail: '2 new',
+        onTap: () => widget.onOpenTailgate(2),
+      ),
     ];
     return GridView.builder(
       shrinkWrap: true,
@@ -227,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(17),
-            onTap: () => widget.onNavigate(action.$4),
+            onTap: action.onTap,
             child: Padding(
               padding: const EdgeInsets.all(13),
               child: Row(
@@ -235,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   CircleAvatar(
                     backgroundColor: const Color(0xFFEFE8F7),
                     foregroundColor: AppColors.purple,
-                    child: Icon(action.$1, size: 21),
+                    child: Icon(action.icon, size: 21),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -244,11 +269,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          action.$2,
+                          action.title,
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                         Text(
-                          action.$3,
+                          action.detail,
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppColors.muted,
@@ -294,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () => widget.onNavigate(1),
+        onTap: () => widget.onOpenTailgate(0),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
