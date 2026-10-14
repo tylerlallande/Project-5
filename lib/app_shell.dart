@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'features/tailgate_detail/tailgate_detail_screen.dart';
 import 'screens/crew_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/map_screen.dart';
@@ -36,6 +37,14 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
+  void _openTailgate(int tabIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TailgateDetailScreen(initialTab: tabIndex),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,7 +55,7 @@ class _AppShellState extends State<AppShell> {
           controller: _pageController,
           onPageChanged: (index) => setState(() => _pageIndex = index),
           children: [
-            HomeScreen(onNavigate: _goToPage),
+            HomeScreen(onNavigate: _goToPage, onOpenTailgate: _openTailgate),
             const CrewScreen(),
             const MapScreen(),
             const ProfileScreen(),
