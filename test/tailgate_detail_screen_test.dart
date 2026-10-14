@@ -8,6 +8,9 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const TailgateApp());
+    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
+    await tester.tap(find.byKey(const Key('continue-as-guest')));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Bring list'));
     await tester.pumpAndSettle();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'app_shell.dart';
+import 'screens/welcome_screen.dart';
 import 'theme/app_theme.dart';
 
 class BayouBlitzApp extends StatelessWidget {
@@ -12,7 +12,7 @@ class BayouBlitzApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'BayouBlitz',
       theme: AppTheme.light,
-      home: const AppShell(),
+      home: const WelcomeScreen(),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
+import 'welcome_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -74,7 +75,11 @@ class ProfileScreen extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         OutlinedButton.icon(
-          onPressed: () {},
+          key: const Key('sign-out-button'),
+          onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute<void>(builder: (_) => const WelcomeScreen()),
+            (_) => false,
+          ),
           icon: const Icon(Icons.logout_rounded),
           label: const Text('Sign out'),
         ),
