@@ -8,10 +8,14 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.onNavigate,
     required this.onOpenTailgate,
+    required this.onHostTailgate,
+    required this.onJoinTailgate,
   });
 
   final ValueChanged<int> onNavigate;
   final ValueChanged<int> onOpenTailgate;
+  final VoidCallback onHostTailgate;
+  final VoidCallback onJoinTailgate;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -67,15 +71,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: () =>
-                    _showMessage('Join-by-code is next on the build list.'),
+                onPressed: widget.onJoinTailgate,
                 icon: const Icon(Icons.key_rounded),
                 label: const Text('Join with an invite code'),
               ),
               const SizedBox(height: 10),
               FilledButton.icon(
-                onPressed: () =>
-                    _showMessage('Tailgate creation is coming next.'),
+                onPressed: widget.onHostTailgate,
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Host a tailgate'),
               ),
