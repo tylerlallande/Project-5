@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'features/tailgate_detail/tailgate_detail_screen.dart';
+import 'features/tailgate_setup/create_tailgate_screen.dart';
+import 'features/tailgate_setup/join_tailgate_screen.dart';
 import 'screens/crew_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/map_screen.dart';
@@ -45,6 +47,24 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
+  Future<void> _hostTailgate() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const CreateTailgateScreen()),
+    );
+    if (created == true && mounted) {
+      _openTailgate(0);
+    }
+  }
+
+  Future<void> _joinTailgate() async {
+    final joined = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const JoinTailgateScreen()));
+    if (joined == true && mounted) {
+      _openTailgate(0);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,7 +75,12 @@ class _AppShellState extends State<AppShell> {
           controller: _pageController,
           onPageChanged: (index) => setState(() => _pageIndex = index),
           children: [
-            HomeScreen(onNavigate: _goToPage, onOpenTailgate: _openTailgate),
+            HomeScreen(
+              onNavigate: _goToPage,
+              onOpenTailgate: _openTailgate,
+              onHostTailgate: _hostTailgate,
+              onJoinTailgate: _joinTailgate,
+            ),
             const CrewScreen(),
             const MapScreen(),
             const ProfileScreen(),
