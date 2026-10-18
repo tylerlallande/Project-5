@@ -27,7 +27,9 @@ class _AppShellState extends State<AppShell> {
         MaterialPageRoute<void>(
           builder: (_) => Scaffold(
             appBar: AppBar(title: const Text('Crew')),
-            body: SafeArea(child: CrewScreen(crewCount: _crewCount)),
+            body: SafeArea(
+              child: CrewScreen(crewCount: _crewCount, showBrandHeader: false),
+            ),
           ),
         ),
       );

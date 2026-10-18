@@ -5,29 +5,96 @@ import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 
 class CrewScreen extends StatefulWidget {
-  const CrewScreen({super.key, this.crewCount = 8});
+  const CrewScreen({
+    super.key,
+    this.crewCount = 8,
+    this.showBrandHeader = true,
+  });
   final int crewCount;
+  final bool showBrandHeader;
 
   @override
   State<CrewScreen> createState() => _CrewScreenState();
 }
 
 class _CrewScreenState extends State<CrewScreen> {
+  List<(String, String, String, Color)> get _members => [
+    ('J', 'Jordan', 'Grill', AppColors.purple),
+    ('M', 'Marcus', 'Drinks', const Color(0xFFC53A36)),
+    ('A', 'Alex', 'Chairs', AppColors.success),
+    ('T', 'Taylor', 'Music', const Color(0xFFE48725)),
+    ('S', 'Sam', 'Snacks', AppColors.purple),
+    ('C', 'Casey', 'Games', AppColors.success),
+    ('M', 'Morgan', 'Coolers', const Color(0xFFC53A36)),
+    ('R', 'Riley', 'Setup', const Color(0xFFE48725)),
+    if (widget.crewCount > 8) ('Y', 'You', 'Checked in', AppColors.purple),
+  ];
+
+  void _showMembers() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text('Crew members (${_members.length})')),
+          body: SafeArea(
+            child: ListView(
+              key: const Key('crew-members-list'),
+              padding: const EdgeInsets.all(20),
+              children: [
+                const Text(
+                  'Gumbo & Geaux · Sample crew',
+                  style: TextStyle(color: AppColors.muted),
+                ),
+                const SizedBox(height: 12),
+                ..._members.map(
+                  (member) => ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: member.$4,
+                      child: Text(
+                        member.$1,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    title: Text(member.$2),
+                    subtitle: Text(member.$3),
+                    trailing: const Icon(
+                      Icons.check_circle_outline,
+                      color: AppColors.success,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
       key: const Key('crew-screen'),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
       children: [
-        AppHeader(
-          action: IconButton.filledTonal(
-            onPressed: () {},
-            icon: const Icon(Icons.person_add_alt_1_rounded),
-            tooltip: 'Invite crew',
-          ),
+        if (widget.showBrandHeader) ...[
+          const AppHeader(),
+          const SizedBox(height: 24),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Crew HQ',
+                style: Theme.of(context).textTheme.headlineLarge,
+              ),
+            ),
+            IconButton.filledTonal(
+              onPressed: () {},
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              tooltip: 'Invite crew',
+            ),
+          ],
         ),
-        const SizedBox(height: 24),
-        Text('Crew HQ', style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 5),
         const Text(
           'People, supplies, and updates for Gumbo & Geaux.',
@@ -81,12 +148,6 @@ class _CrewScreenState extends State<CrewScreen> {
   }
 
   Widget _buildCrewCard() {
-    const members = [
-      ('J', 'Jordan', 'Grill', AppColors.purple),
-      ('M', 'Marcus', 'Drinks', Color(0xFFC53A36)),
-      ('A', 'Alex', 'Chairs', AppColors.success),
-      ('T', 'Taylor', 'Music', Color(0xFFE48725)),
-    ];
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -113,9 +174,12 @@ class _CrewScreenState extends State<CrewScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: members
+            Wrap(
+              alignment: WrapAlignment.spaceAround,
+              spacing: 16,
+              runSpacing: 12,
+              children: _members
+                  .take(4)
                   .map(
                     (member) => Column(
                       children: [
@@ -149,6 +213,14 @@ class _CrewScreenState extends State<CrewScreen> {
                     ),
                   )
                   .toList(),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                key: const Key('see-all-crew'),
+                onPressed: _showMembers,
+                child: const Text('See all members'),
+              ),
             ),
           ],
         ),
