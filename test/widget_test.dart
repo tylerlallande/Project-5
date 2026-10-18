@@ -110,6 +110,46 @@ void main() {
     await tester.pump();
 
     expect(find.text('Checked in'), findsOneWidget);
+    expect(find.text('9 Tigers'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('check-in-button')));
+    await tester.pump();
+    expect(find.text('8 Tigers'), findsOneWidget);
+  });
+
+  testWidgets('crew quick action has a back arrow and preserves attendance', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const TailgateApp());
+    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
+    await tester.tap(find.byKey(const Key('continue-as-guest')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('check-in-button')));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Crew').first);
+    await tester.tap(find.text('Crew').first);
+    await tester.pumpAndSettle();
+    expect(find.text('9 GOING'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('home-screen')), findsOneWidget);
+    await tester.drag(
+      find.byKey(const Key('home-screen')),
+      const Offset(0, 600),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('9 Tigers'), findsOneWidget);
+    await tester.tap(find.text('Crew').last);
+    await tester.pumpAndSettle();
+    expect(find.text('9 GOING'), findsOneWidget);
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const Key('home-screen')),
+      const Offset(0, 600),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('9 Tigers'), findsOneWidget);
   });
 
   testWidgets('bottom navigation and swipes change pages', (tester) async {

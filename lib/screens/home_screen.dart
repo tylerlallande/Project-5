@@ -10,19 +10,24 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenTailgate,
     required this.onHostTailgate,
     required this.onJoinTailgate,
+    required this.checkedIn,
+    required this.onCheckInChanged,
   });
 
   final ValueChanged<int> onNavigate;
   final ValueChanged<int> onOpenTailgate;
   final VoidCallback onHostTailgate;
   final VoidCallback onJoinTailgate;
+  final bool checkedIn;
+  final ValueChanged<bool> onCheckInChanged;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _checkedIn = false;
+  bool get _checkedIn => widget.checkedIn;
+  int get _crewCount => _checkedIn ? 9 : 8;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 date: 'SAT · OCT 10',
                 title: 'Gumbo & Geaux',
                 detail: 'Oak Grove · You’re hosting',
-                people: '8 going',
+                people: '$_crewCount going',
               ),
               const SizedBox(height: 10),
               _tailgateTile(
@@ -152,12 +157,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: EdgeInsets.symmetric(vertical: 16),
                   child: Divider(color: Color(0x55FFFFFF), height: 1),
                 ),
-                const Row(
+                Row(
                   children: [
                     Expanded(
-                      child: _EventStat(label: 'CREW', value: '8 Tigers'),
+                      child: _EventStat(
+                        label: 'CREW',
+                        value: '$_crewCount Tigers',
+                      ),
                     ),
-                    Expanded(
+                    const Expanded(
                       child: _EventStat(
                         label: 'SUPPLIES',
                         value: '6 / 8 ready',
@@ -177,8 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               : AppColors.gold,
                           foregroundColor: AppColors.deepPurple,
                         ),
-                        onPressed: () =>
-                            setState(() => _checkedIn = !_checkedIn),
+                        onPressed: () => widget.onCheckInChanged(!_checkedIn),
                         icon: Icon(
                           _checkedIn
                               ? Icons.check_circle_rounded
@@ -218,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
       (
         icon: Icons.groups_rounded,
         title: 'Crew',
-        detail: '8 going',
+        detail: '$_crewCount going',
         onTap: () => widget.onNavigate(1),
       ),
       (

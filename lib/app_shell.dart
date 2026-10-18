@@ -18,6 +18,23 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   late final PageController _pageController;
   int _pageIndex = 0;
+  bool _checkedIn = false;
+  int get _crewCount => _checkedIn ? 9 : 8;
+
+  void _openHomeAction(int index) {
+    if (index == 1) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text('Crew')),
+            body: SafeArea(child: CrewScreen(crewCount: _crewCount)),
+          ),
+        ),
+      );
+    } else {
+      _goToPage(index);
+    }
+  }
 
   @override
   void initState() {
@@ -76,12 +93,14 @@ class _AppShellState extends State<AppShell> {
           onPageChanged: (index) => setState(() => _pageIndex = index),
           children: [
             HomeScreen(
-              onNavigate: _goToPage,
+              onNavigate: _openHomeAction,
+              checkedIn: _checkedIn,
+              onCheckInChanged: (value) => setState(() => _checkedIn = value),
               onOpenTailgate: _openTailgate,
               onHostTailgate: _hostTailgate,
               onJoinTailgate: _joinTailgate,
             ),
-            const CrewScreen(),
+            CrewScreen(crewCount: _crewCount),
             const MapScreen(),
             const ProfileScreen(),
           ],

@@ -5,7 +5,8 @@ import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 
 class CrewScreen extends StatefulWidget {
-  const CrewScreen({super.key});
+  const CrewScreen({super.key, this.crewCount = 8});
+  final int crewCount;
 
   @override
   State<CrewScreen> createState() => _CrewScreenState();
@@ -92,17 +93,17 @@ class _CrewScreenState extends State<CrewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Expanded(
+                const Expanded(
                   child: Text(
                     'The crew',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                   ),
                 ),
                 Text(
-                  '8 GOING',
-                  style: TextStyle(
+                  '${widget.crewCount} GOING',
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1,
