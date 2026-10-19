@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'features/tailgate_detail/tailgate_detail_screen.dart';
+import 'features/map/map_repository.dart';
+import 'features/map/map_seed_data.dart';
+import 'features/map/map_provider_config.dart';
+import 'features/map/meetup_spot_controller.dart';
 import 'features/tailgate_setup/create_tailgate_screen.dart';
 import 'features/tailgate_setup/join_tailgate_screen.dart';
 import 'screens/crew_screen.dart';
@@ -19,6 +23,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   late final PageController _pageController;
+  late final MeetupSpotController _meetupSpotController;
   int _pageIndex = 0;
   bool _checkedIn = false;
   final List<TailgateEntry> _tailgates = [
@@ -119,11 +124,16 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _meetupSpotController = MeetupSpotController(
+      InMemoryMapRepository(developmentMeetupSpots),
+      tailgateId: 'gumbo',
+    )..load();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _meetupSpotController.dispose();
     super.dispose();
   }
 
@@ -138,7 +148,10 @@ class _AppShellState extends State<AppShell> {
   void _openTailgate(int tabIndex) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => TailgateDetailScreen(initialTab: tabIndex),
+        builder: (_) => TailgateDetailScreen(
+          initialTab: tabIndex,
+          meetupSpotController: _meetupSpotController,
+        ),
       ),
     );
   }
@@ -208,7 +221,10 @@ class _AppShellState extends State<AppShell> {
               onOpen: _viewEntry,
             ),
             CrewScreen(crewCount: _crewCount),
-            const MapScreen(),
+            MapScreen(
+              controller: _meetupSpotController,
+              providerConfig: MapProviderConfig.fromEnvironment(),
+            ),
             const ProfileScreen(),
           ],
         ),
