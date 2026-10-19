@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tailgating/features/tailgate_detail/tailgate_detail_screen.dart';
+import 'package:tailgating/features/map/map_repository.dart';
+import 'package:tailgating/features/map/map_seed_data.dart';
+import 'package:tailgating/features/map/meetup_spot_controller.dart';
 import 'package:tailgating/main.dart';
+
+MeetupSpotController createSpotController() => MeetupSpotController(
+  InMemoryMapRepository(developmentMeetupSpots),
+  tailgateId: 'gumbo',
+)..load();
 
 void main() {
   testWidgets('home bring-list action opens the tailgate detail page', (
@@ -21,12 +29,17 @@ void main() {
   });
 
   testWidgets('tailgate tabs expose spot and updates content', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: TailgateDetailScreen()));
+    final controller = createSpotController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(home: TailgateDetailScreen(meetupSpotController: controller)),
+    );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('tailgate-spot-tab')));
     await tester.pumpAndSettle();
     expect(find.text('Meetup spot'), findsOneWidget);
-    expect(find.text('Oak Grove · gold flag'), findsOneWidget);
+    expect(find.text('Oak Grove'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('tailgate-updates-tab')));
     await tester.pumpAndSettle();
@@ -35,8 +48,15 @@ void main() {
   });
 
   testWidgets('posts a local game-day update', (tester) async {
+    final controller = createSpotController();
+    addTearDown(controller.dispose);
     await tester.pumpWidget(
-      const MaterialApp(home: TailgateDetailScreen(initialTab: 2)),
+      MaterialApp(
+        home: TailgateDetailScreen(
+          initialTab: 2,
+          meetupSpotController: controller,
+        ),
+      ),
     );
 
     await tester.enterText(

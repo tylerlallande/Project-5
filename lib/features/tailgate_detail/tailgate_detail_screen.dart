@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../bring_list/bring_list_section.dart';
+import '../map/meetup_spot.dart';
+import '../map/meetup_spot_controller.dart';
 
 class TailgateDetailScreen extends StatelessWidget {
-  const TailgateDetailScreen({super.key, this.initialTab = 0});
+  const TailgateDetailScreen({
+    super.key,
+    this.initialTab = 0,
+    required this.meetupSpotController,
+  });
 
   final int initialTab;
+  final MeetupSpotController meetupSpotController;
 
   @override
   Widget build(BuildContext context) {
@@ -26,15 +33,19 @@ class TailgateDetailScreen extends StatelessWidget {
         ),
         body: Column(
           children: [
-            const _TailgateSummary(),
+            _TailgateSummary(controller: meetupSpotController),
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 8, 20, 8),
               child: _TailgateTabBar(),
             ),
-            const Expanded(
+            Expanded(
               child: TabBarView(
                 key: Key('tailgate-tab-view'),
-                children: [_BringTab(), _SpotTab(), _UpdatesTab()],
+                children: [
+                  const _BringTab(),
+                  _SpotTab(controller: meetupSpotController),
+                  const _UpdatesTab(),
+                ],
               ),
             ),
           ],
@@ -45,7 +56,9 @@ class TailgateDetailScreen extends StatelessWidget {
 }
 
 class _TailgateSummary extends StatelessWidget {
-  const _TailgateSummary();
+  const _TailgateSummary({required this.controller});
+
+  final MeetupSpotController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -59,10 +72,10 @@ class _TailgateSummary extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(22),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'LSU VS. ALABAMA',
             style: TextStyle(
               color: AppColors.gold,
@@ -71,8 +84,8 @@ class _TailgateSummary extends StatelessWidget {
               letterSpacing: 1,
             ),
           ),
-          SizedBox(height: 7),
-          Text(
+          const SizedBox(height: 7),
+          const Text(
             'Saturday · 6:30 PM kickoff',
             style: TextStyle(
               color: Colors.white,
@@ -80,27 +93,36 @@ class _TailgateSummary extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 9),
+          const SizedBox(height: 9),
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.location_on_outlined,
                 color: Color(0xFFD9CFE8),
                 size: 17,
               ),
-              SizedBox(width: 5),
+              const SizedBox(width: 5),
               Expanded(
-                child: Text(
-                  'Oak Grove · Meet at 11:00 AM',
-                  style: TextStyle(
-                    color: Color(0xFFD9CFE8),
-                    fontWeight: FontWeight.w600,
+                child: AnimatedBuilder(
+                  animation: controller,
+                  builder: (context, _) => Text(
+                    controller.spot == null
+                        ? 'Loading meetup spot…'
+                        : '${controller.spot!.name} · Meet at ${controller.spot!.meetupTime}',
+                    style: const TextStyle(
+                      color: Color(0xFFD9CFE8),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-              Icon(Icons.groups_rounded, color: Color(0xFFD9CFE8), size: 17),
-              SizedBox(width: 5),
-              Text(
+              const Icon(
+                Icons.groups_rounded,
+                color: Color(0xFFD9CFE8),
+                size: 17,
+              ),
+              const SizedBox(width: 5),
+              const Text(
                 '8 going',
                 style: TextStyle(
                   color: Color(0xFFD9CFE8),
@@ -161,7 +183,29 @@ class _BringTab extends StatelessWidget {
 }
 
 class _SpotTab extends StatelessWidget {
-  const _SpotTab();
+  const _SpotTab({required this.controller});
+
+  final MeetupSpotController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final spot = controller.spot;
+        if (spot == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return _SpotContent(spot: spot);
+      },
+    );
+  }
+}
+
+class _SpotContent extends StatelessWidget {
+  const _SpotContent({required this.spot});
+
+  final MeetupSpot spot;
 
   @override
   Widget build(BuildContext context) {
@@ -171,21 +215,24 @@ class _SpotTab extends StatelessWidget {
       children: [
         Text('Meetup spot', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 5),
-        const Text(
-          'Find the tent with the gold flag in Oak Grove.',
+        Text(
+          '${spot.instructions} ${spot.name}.',
           style: TextStyle(color: AppColors.muted),
         ),
         const SizedBox(height: 14),
-        const _MapPreview(),
+        _MapPreview(label: spot.name),
         const SizedBox(height: 12),
-        const Row(
+        Row(
           children: [
             Expanded(
-              child: _SpotStat(label: 'MEET THERE', value: '11:00 AM'),
+              child: _SpotStat(label: 'MEET THERE', value: spot.meetupTime),
             ),
             SizedBox(width: 10),
             Expanded(
-              child: _SpotStat(label: 'TO STADIUM', value: '6 min walk'),
+              child: _SpotStat(
+                label: 'TO STADIUM',
+                value: '${spot.walkToStadiumMinutes} min walk',
+              ),
             ),
           ],
         ),
@@ -207,7 +254,9 @@ class _SpotTab extends StatelessWidget {
 }
 
 class _MapPreview extends StatelessWidget {
-  const _MapPreview();
+  const _MapPreview({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +299,7 @@ class _MapPreview extends StatelessWidget {
               bottom: 0,
               child: Container(width: 11, color: Colors.white),
             ),
-            const Center(
+            Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -262,7 +311,7 @@ class _MapPreview extends StatelessWidget {
                         vertical: 7,
                       ),
                       child: Text(
-                        'Oak Grove · gold flag',
+                        label,
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),

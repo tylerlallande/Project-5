@@ -2,9 +2,44 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
+import '../features/map/map_provider_config.dart';
+import '../features/map/meetup_spot.dart';
+import '../features/map/meetup_spot_controller.dart';
 
 class MapScreen extends StatelessWidget {
-  const MapScreen({super.key});
+  const MapScreen({
+    super.key,
+    required this.controller,
+    required this.providerConfig,
+  });
+
+  final MeetupSpotController controller;
+  final MapProviderConfig providerConfig;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        if (controller.isLoading && controller.spot == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (controller.error != null && controller.spot == null) {
+          return _MapError(onRetry: controller.load);
+        }
+        final spot = controller.spot;
+        if (spot == null) return const SizedBox.shrink();
+        return _MapContent(spot: spot, providerConfig: providerConfig);
+      },
+    );
+  }
+}
+
+class _MapContent extends StatelessWidget {
+  const _MapContent({required this.spot, required this.providerConfig});
+
+  final MeetupSpot spot;
+  final MapProviderConfig providerConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -16,8 +51,8 @@ class MapScreen extends StatelessWidget {
         const SizedBox(height: 24),
         Text('The spot', style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 5),
-        const Text(
-          'Oak Grove · Tent with the gold flag',
+        Text(
+          '${spot.name} · ${spot.instructions}',
           style: TextStyle(color: AppColors.muted),
         ),
         const SizedBox(height: 18),
@@ -63,7 +98,7 @@ class MapScreen extends StatelessWidget {
                     child: Container(height: 12, color: Colors.white),
                   ),
                 ),
-                const Center(
+                Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -79,7 +114,7 @@ class MapScreen extends StatelessWidget {
                             vertical: 9,
                           ),
                           child: Text(
-                            'Oak Grove · gold flag',
+                            spot.name,
                             style: TextStyle(fontWeight: FontWeight.w800),
                           ),
                         ),
@@ -92,14 +127,17 @@ class MapScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const Row(
+        Row(
           children: [
             Expanded(
-              child: _MapStat(label: 'GET THERE', value: '11:00 AM'),
+              child: _MapStat(label: 'GET THERE', value: spot.meetupTime),
             ),
             SizedBox(width: 10),
             Expanded(
-              child: _MapStat(label: 'WALK TO STADIUM', value: '6 min'),
+              child: _MapStat(
+                label: 'WALK TO STADIUM',
+                value: '${spot.walkToStadiumMinutes} min',
+              ),
             ),
           ],
         ),
@@ -115,9 +153,32 @@ class MapScreen extends StatelessWidget {
           icon: const Icon(Icons.edit_location_alt_outlined),
           label: const Text('Suggest a different spot'),
         ),
+        Text(
+          '${spot.latitude.toStringAsFixed(4)}, '
+          '${spot.longitude.toStringAsFixed(4)} · ${providerConfig.attribution}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+        ),
       ],
     );
   }
+}
+
+class _MapError extends StatelessWidget {
+  const _MapError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('The meetup spot could not be loaded.'),
+        TextButton(onPressed: onRetry, child: const Text('Try again')),
+      ],
+    ),
+  );
 }
 
 class _MapStat extends StatelessWidget {
