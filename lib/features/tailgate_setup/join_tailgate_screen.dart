@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/app_theme.dart';
+import 'tailgate_draft.dart';
 
 class JoinTailgateScreen extends StatefulWidget {
-  const JoinTailgateScreen({super.key});
+  const JoinTailgateScreen({super.key, this.entries});
+  final List<TailgateEntry>? entries;
 
   @override
   State<JoinTailgateScreen> createState() => _JoinTailgateScreenState();
@@ -14,6 +16,7 @@ class _JoinTailgateScreenState extends State<JoinTailgateScreen> {
   final _codeController = TextEditingController();
   bool _showPreview = false;
   String? _error;
+  TailgateEntry? _found;
 
   @override
   void dispose() {
@@ -85,11 +88,34 @@ class _JoinTailgateScreenState extends State<JoinTailgateScreen> {
           ),
           if (_showPreview) ...[
             const SizedBox(height: 28),
-            const _TailgatePreview(),
+            if (_found == null)
+              const _TailgatePreview()
+            else
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _found!.draft.name,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      Text(_found!.draft.game),
+                      Text(_found!.draft.location),
+                      Text(
+                        _found!.joined
+                            ? 'You’re already in this tailgate.'
+                            : 'Invite code found. Join this crew below.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 14),
             FilledButton.icon(
               key: const Key('join-crew-button'),
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(context, _found ?? true),
               icon: const Icon(Icons.groups_rounded),
               label: const Text('Join the crew'),
             ),
@@ -101,11 +127,18 @@ class _JoinTailgateScreenState extends State<JoinTailgateScreen> {
 
   void _findTailgate() {
     final code = _codeController.text.trim().toUpperCase();
+    _found = null;
+    for (final entry in widget.entries ?? <TailgateEntry>[]) {
+      if (entry.code == code) {
+        _found = entry;
+        break;
+      }
+    }
     setState(() {
       if (code.length != 6) {
         _error = 'Enter all six characters';
         _showPreview = false;
-      } else if (code != 'GEAUX7') {
+      } else if (widget.entries != null ? _found == null : code != 'GEAUX7') {
         _error = 'No tailgate found for that code';
         _showPreview = false;
       } else {

@@ -5,7 +5,13 @@ import '../../theme/app_theme.dart';
 import 'tailgate_draft.dart';
 
 class CreateTailgateScreen extends StatefulWidget {
-  const CreateTailgateScreen({super.key});
+  const CreateTailgateScreen({
+    super.key,
+    this.onCreated,
+    this.inviteCode = 'GEAUX7',
+  });
+  final ValueChanged<TailgateDraft>? onCreated;
+  final String inviteCode;
 
   @override
   State<CreateTailgateScreen> createState() => _CreateTailgateScreenState();
@@ -20,6 +26,7 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
   TimeOfDay _kickoff = const TimeOfDay(hour: 18, minute: 30);
   TimeOfDay _meetup = const TimeOfDay(hour: 11, minute: 0);
   String _vibe = 'Food & drinks';
+  bool _isPublic = false;
   String? _gameError;
   String? _nameError;
   String? _locationError;
@@ -38,6 +45,7 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
     if (_createdTailgate != null) {
       return _InviteCodeResult(
         tailgate: _createdTailgate!,
+        code: widget.inviteCode,
         onDone: () => Navigator.pop(context, true),
       );
     }
@@ -84,6 +92,19 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
           style: TextStyle(color: AppColors.muted),
         ),
         const SizedBox(height: 24),
+        SwitchListTile(
+          key: const Key('public-tailgate-toggle'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Public tailgate'),
+          subtitle: Text(
+            _isPublic
+                ? 'Anyone can discover and join without an invite code.'
+                : 'Private: guests need your invite code to join.',
+          ),
+          value: _isPublic,
+          onChanged: (value) => setState(() => _isPublic = value),
+        ),
+        const SizedBox(height: 18),
         TextField(
           key: const Key('create-game-field'),
           controller: _gameController,
@@ -249,6 +270,13 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
                   icon: Icons.auto_awesome_rounded,
                   label: 'Vibe',
                   value: _vibe,
+                ),
+                _ReviewRow(
+                  icon: _isPublic ? Icons.public : Icons.lock_outline,
+                  label: 'Visibility',
+                  value: _isPublic
+                      ? 'Public · anyone can join'
+                      : 'Private · invite only',
                   showDivider: false,
                 ),
               ],
@@ -319,8 +347,10 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
         meetupTime: _meetup.format(context),
         location: _locationController.text.trim(),
         vibe: _vibe,
+        isPublic: _isPublic,
       );
     });
+    widget.onCreated?.call(_createdTailgate!);
   }
 
   Future<void> _pickDate() async {
@@ -459,13 +489,17 @@ class _ReviewRow extends StatelessWidget {
 }
 
 class _InviteCodeResult extends StatelessWidget {
-  const _InviteCodeResult({required this.tailgate, required this.onDone});
+  const _InviteCodeResult({
+    required this.tailgate,
+    required this.onDone,
+    required this.code,
+  });
+  final String code;
   final TailgateDraft tailgate;
   final VoidCallback onDone;
 
   @override
   Widget build(BuildContext context) {
-    const code = 'GEAUX7';
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -516,10 +550,10 @@ class _InviteCodeResult extends StatelessWidget {
                   color: AppColors.purple,
                   borderRadius: BorderRadius.circular(22),
                 ),
-                child: const Text(
+                child: Text(
                   code,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.gold,
                     fontSize: 38,
                     fontWeight: FontWeight.w900,
@@ -531,7 +565,7 @@ class _InviteCodeResult extends StatelessWidget {
               OutlinedButton.icon(
                 key: const Key('copy-invite-code'),
                 onPressed: () {
-                  Clipboard.setData(const ClipboardData(text: code));
+                  Clipboard.setData(ClipboardData(text: code));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Invite code copied')),
                   );
