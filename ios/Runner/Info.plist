@@ -8,6 +8,8 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Tailgating</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Bayou Blitz uses your location to show where you are relative to the tailgate meetup spot.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

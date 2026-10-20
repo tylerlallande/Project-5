@@ -17,6 +17,23 @@ class MeetupSpot {
   final String meetupTime;
   final int walkToStadiumMinutes;
 
+  MeetupSpot copyWith({
+    String? name,
+    String? instructions,
+    double? latitude,
+    double? longitude,
+    String? meetupTime,
+    int? walkToStadiumMinutes,
+  }) => MeetupSpot(
+    tailgateId: tailgateId,
+    name: name ?? this.name,
+    instructions: instructions ?? this.instructions,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
+    meetupTime: meetupTime ?? this.meetupTime,
+    walkToStadiumMinutes: walkToStadiumMinutes ?? this.walkToStadiumMinutes,
+  );
+
   factory MeetupSpot.fromJson(Map<String, Object?> json) => MeetupSpot(
     tailgateId: json['tailgateId']! as String,
     name: json['name']! as String,

@@ -4,9 +4,11 @@ import 'package:tailgating/features/tailgate_setup/create_tailgate_screen.dart';
 import 'package:tailgating/features/tailgate_setup/join_tailgate_screen.dart';
 import 'package:tailgating/main.dart';
 
+import 'test_map_builder.dart';
+
 void main() {
   testWidgets('home opens create and join flows', (tester) async {
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
 
     await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
     await tester.tap(find.byKey(const Key('continue-as-guest')));

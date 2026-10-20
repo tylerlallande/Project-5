@@ -2,20 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tailgating/features/tailgate_detail/tailgate_detail_screen.dart';
 import 'package:tailgating/features/map/map_repository.dart';
+import 'package:tailgating/features/map/map_provider_config.dart';
 import 'package:tailgating/features/map/map_seed_data.dart';
 import 'package:tailgating/features/map/meetup_spot_controller.dart';
 import 'package:tailgating/main.dart';
+
+import 'test_map_builder.dart';
 
 MeetupSpotController createSpotController() => MeetupSpotController(
   InMemoryMapRepository(developmentMeetupSpots),
   tailgateId: 'gumbo',
 )..load();
 
+TailgateDetailScreen buildDetailScreen(
+  MeetupSpotController controller, {
+  int initialTab = 0,
+}) => TailgateDetailScreen(
+  initialTab: initialTab,
+  meetupSpotController: controller,
+  mapProviderConfig: MapProviderConfig.fromEnvironment(),
+  mapBuilder: buildTestMap,
+  directionsLauncher: (_) async => true,
+);
+
 void main() {
   testWidgets('home bring-list action opens the tailgate detail page', (
     tester,
   ) async {
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
     await tester.tap(find.byKey(const Key('continue-as-guest')));
     await tester.pumpAndSettle();
@@ -31,9 +45,7 @@ void main() {
   testWidgets('tailgate tabs expose spot and updates content', (tester) async {
     final controller = createSpotController();
     addTearDown(controller.dispose);
-    await tester.pumpWidget(
-      MaterialApp(home: TailgateDetailScreen(meetupSpotController: controller)),
-    );
+    await tester.pumpWidget(MaterialApp(home: buildDetailScreen(controller)));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('tailgate-spot-tab')));
@@ -51,12 +63,7 @@ void main() {
     final controller = createSpotController();
     addTearDown(controller.dispose);
     await tester.pumpWidget(
-      MaterialApp(
-        home: TailgateDetailScreen(
-          initialTab: 2,
-          meetupSpotController: controller,
-        ),
-      ),
+      MaterialApp(home: buildDetailScreen(controller, initialTab: 2)),
     );
 
     await tester.enterText(

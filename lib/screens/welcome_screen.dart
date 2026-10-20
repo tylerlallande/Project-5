@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../app_shell.dart';
+import '../features/map/meetup_map.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 
 class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({super.key});
+  const WelcomeScreen({super.key, this.mapBuilder});
+
+  final MeetupMapBuilder? mapBuilder;
 
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
@@ -17,7 +20,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   void _enterApp() {
     FocusScope.of(context).unfocus();
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const AppShell()),
+      MaterialPageRoute<void>(
+        builder: (_) => AppShell(mapBuilder: widget.mapBuilder),
+      ),
     );
   }
 
