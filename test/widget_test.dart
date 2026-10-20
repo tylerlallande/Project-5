@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tailgating/main.dart';
 
+import 'test_map_builder.dart';
+
 void main() {
   testWidgets('optional sign in masks the password and accepts demo details', (
     tester,
   ) async {
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     await tester.enterText(find.byKey(const Key('login-username')), 'TigerFan');
     await tester.enterText(
       find.byKey(const Key('login-password')),
@@ -36,7 +38,7 @@ void main() {
   testWidgets('sign in accepts empty fields while accounts are optional', (
     tester,
   ) async {
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     await tester.ensureVisible(find.byKey(const Key('sign-in-button')));
     await tester.tap(find.byKey(const Key('sign-in-button')));
     await tester.pumpAndSettle();
@@ -46,7 +48,7 @@ void main() {
   testWidgets('sign out returns to welcome and guest entry starts at home', (
     tester,
   ) async {
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
     await tester.tap(find.byKey(const Key('continue-as-guest')));
     await tester.pumpAndSettle();
@@ -83,7 +85,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     expect(find.byKey(const Key('home-screen')), findsNothing);
     expect(find.byType(TextField), findsNWidgets(2));
     await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
@@ -97,7 +99,7 @@ void main() {
   testWidgets('home surfaces event details and allows check-in', (
     tester,
   ) async {
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
     await tester.tap(find.byKey(const Key('continue-as-guest')));
     await tester.pumpAndSettle();
@@ -119,7 +121,7 @@ void main() {
   testWidgets('crew quick action has a back arrow and preserves attendance', (
     tester,
   ) async {
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
     await tester.tap(find.byKey(const Key('continue-as-guest')));
     await tester.pumpAndSettle();
@@ -153,7 +155,7 @@ void main() {
   });
 
   testWidgets('bottom navigation and swipes change pages', (tester) async {
-    await tester.pumpWidget(const TailgateApp());
+    await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
     await tester.tap(find.byKey(const Key('continue-as-guest')));
     await tester.pumpAndSettle();

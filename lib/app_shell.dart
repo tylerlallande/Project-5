@@ -4,6 +4,7 @@ import 'features/tailgate_detail/tailgate_detail_screen.dart';
 import 'features/map/map_repository.dart';
 import 'features/map/map_seed_data.dart';
 import 'features/map/map_provider_config.dart';
+import 'features/map/meetup_map.dart';
 import 'features/map/meetup_spot_controller.dart';
 import 'features/tailgate_setup/create_tailgate_screen.dart';
 import 'features/tailgate_setup/join_tailgate_screen.dart';
@@ -15,7 +16,9 @@ import 'screens/tailgates_screen.dart';
 import 'features/tailgate_setup/tailgate_draft.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.mapBuilder});
+
+  final MeetupMapBuilder? mapBuilder;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -151,6 +154,8 @@ class _AppShellState extends State<AppShell> {
         builder: (_) => TailgateDetailScreen(
           initialTab: tabIndex,
           meetupSpotController: _meetupSpotController,
+          mapProviderConfig: MapProviderConfig.fromEnvironment(),
+          mapBuilder: widget.mapBuilder,
         ),
       ),
     );
@@ -224,6 +229,7 @@ class _AppShellState extends State<AppShell> {
             MapScreen(
               controller: _meetupSpotController,
               providerConfig: MapProviderConfig.fromEnvironment(),
+              mapBuilder: widget.mapBuilder,
             ),
             const ProfileScreen(),
           ],

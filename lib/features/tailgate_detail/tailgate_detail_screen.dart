@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../bring_list/bring_list_section.dart';
+import '../map/map_links.dart';
+import '../map/map_provider_config.dart';
+import '../map/meetup_map.dart';
 import '../map/meetup_spot.dart';
 import '../map/meetup_spot_controller.dart';
 
@@ -10,10 +13,16 @@ class TailgateDetailScreen extends StatelessWidget {
     super.key,
     this.initialTab = 0,
     required this.meetupSpotController,
+    required this.mapProviderConfig,
+    this.mapBuilder,
+    this.directionsLauncher = openDirections,
   });
 
   final int initialTab;
   final MeetupSpotController meetupSpotController;
+  final MapProviderConfig mapProviderConfig;
+  final MeetupMapBuilder? mapBuilder;
+  final DirectionsLauncher directionsLauncher;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +52,12 @@ class TailgateDetailScreen extends StatelessWidget {
                 key: Key('tailgate-tab-view'),
                 children: [
                   const _BringTab(),
-                  _SpotTab(controller: meetupSpotController),
+                  _SpotTab(
+                    controller: meetupSpotController,
+                    providerConfig: mapProviderConfig,
+                    mapBuilder: mapBuilder,
+                    directionsLauncher: directionsLauncher,
+                  ),
                   const _UpdatesTab(),
                 ],
               ),
@@ -183,9 +197,17 @@ class _BringTab extends StatelessWidget {
 }
 
 class _SpotTab extends StatelessWidget {
-  const _SpotTab({required this.controller});
+  const _SpotTab({
+    required this.controller,
+    required this.providerConfig,
+    required this.mapBuilder,
+    required this.directionsLauncher,
+  });
 
   final MeetupSpotController controller;
+  final MapProviderConfig providerConfig;
+  final MeetupMapBuilder? mapBuilder;
+  final DirectionsLauncher directionsLauncher;
 
   @override
   Widget build(BuildContext context) {
@@ -196,16 +218,36 @@ class _SpotTab extends StatelessWidget {
         if (spot == null) {
           return const Center(child: CircularProgressIndicator());
         }
-        return _SpotContent(spot: spot);
+        return _SpotContent(
+          spot: spot,
+          controller: controller,
+          providerConfig: providerConfig,
+          mapBuilder: mapBuilder,
+          directionsLauncher: directionsLauncher,
+        );
       },
     );
   }
 }
 
 class _SpotContent extends StatelessWidget {
-  const _SpotContent({required this.spot});
+  const _SpotContent({
+    required this.spot,
+    required this.controller,
+    required this.providerConfig,
+    required this.mapBuilder,
+    required this.directionsLauncher,
+  });
 
   final MeetupSpot spot;
+  final MeetupSpotController controller;
+  final MapProviderConfig providerConfig;
+  final MeetupMapBuilder? mapBuilder;
+  final DirectionsLauncher directionsLauncher;
+
+  Future<void> _openDirections(BuildContext context) async {
+    await confirmAndOpenDirections(context, spot, directionsLauncher);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -217,17 +259,27 @@ class _SpotContent extends StatelessWidget {
         const SizedBox(height: 5),
         Text(
           '${spot.instructions} ${spot.name}.',
-          style: TextStyle(color: AppColors.muted),
+          style: const TextStyle(color: AppColors.muted),
         ),
         const SizedBox(height: 14),
-        _MapPreview(label: spot.name),
+        AspectRatio(
+          aspectRatio: 1.45,
+          child: MeetupMap(
+            spot: spot,
+            providerConfig: providerConfig,
+            compact: true,
+            mapBuilder: mapBuilder,
+            onSpotMoved: controller.save,
+            onPinTapped: () => _openDirections(context),
+          ),
+        ),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: _SpotStat(label: 'MEET THERE', value: spot.meetupTime),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
               child: _SpotStat(
                 label: 'TO STADIUM',
@@ -238,90 +290,11 @@ class _SpotContent extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: null,
-          icon: Icon(Icons.directions_rounded),
-          label: Text('Get directions'),
-        ),
-        const SizedBox(height: 8),
-        TextButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.edit_location_alt_outlined),
-          label: const Text('Move the meetup pin'),
+          onPressed: () => _openDirections(context),
+          icon: const Icon(Icons.directions_rounded),
+          label: const Text('Get directions'),
         ),
       ],
-    );
-  }
-}
-
-class _MapPreview extends StatelessWidget {
-  const _MapPreview({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1.45,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: const Color(0xFFECE8DE),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Stack(
-          children: [
-            const Positioned(
-              left: -30,
-              top: -30,
-              child: CircleAvatar(
-                radius: 95,
-                backgroundColor: Color(0xFFCFE4C2),
-              ),
-            ),
-            const Positioned(
-              right: -35,
-              bottom: -50,
-              child: CircleAvatar(
-                radius: 90,
-                backgroundColor: Color(0xFFDDD0EE),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 85,
-              child: Container(height: 11, color: Colors.white),
-            ),
-            Positioned(
-              left: 165,
-              top: 0,
-              bottom: 0,
-              child: Container(width: 11, color: Colors.white),
-            ),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.location_pin, size: 54, color: Color(0xFFE8306C)),
-                  Card(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
-                      child: Text(
-                        label,
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

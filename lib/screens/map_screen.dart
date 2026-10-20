@@ -1,167 +1,410 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../theme/app_theme.dart';
-import '../widgets/app_header.dart';
+import '../features/map/current_location.dart';
+import '../features/map/map_links.dart';
 import '../features/map/map_provider_config.dart';
+import '../features/map/meetup_map.dart';
 import '../features/map/meetup_spot.dart';
 import '../features/map/meetup_spot_controller.dart';
+import '../theme/app_theme.dart';
 
-class MapScreen extends StatelessWidget {
+class MapScreen extends StatefulWidget {
   const MapScreen({
     super.key,
     required this.controller,
     required this.providerConfig,
+    this.mapBuilder,
+    this.directionsLauncher = openDirections,
+    this.locationLoader = loadCurrentLocation,
   });
 
   final MeetupSpotController controller;
   final MapProviderConfig providerConfig;
+  final MeetupMapBuilder? mapBuilder;
+  final DirectionsLauncher directionsLauncher;
+  final LocationLoader locationLoader;
+
+  @override
+  State<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends State<MapScreen> {
+  MapCoordinate? _userLocation;
+  bool _isLocating = false;
+  int _placementRequest = 0;
+
+  void _requestPinPlacement() {
+    setState(() => _placementRequest++);
+  }
+
+  Future<void> _removePin(MeetupSpot spot) async {
+    await widget.controller.remove();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Tailgate pin removed.'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => widget.controller.save(spot),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCurrentLocation() async {
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    try {
+      final location = await widget.locationLoader();
+      if (!mounted) return;
+      setState(() => _userLocation = location);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your location is now shown in blue.')),
+      );
+    } on LocationUnavailable catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Your location could not be found.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: controller,
+      animation: widget.controller,
       builder: (context, _) {
-        if (controller.isLoading && controller.spot == null) {
+        if (widget.controller.isLoading && widget.controller.spot == null) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (controller.error != null && controller.spot == null) {
-          return _MapError(onRetry: controller.load);
+        if (widget.controller.error != null && widget.controller.spot == null) {
+          return _MapError(onRetry: widget.controller.load);
         }
-        final spot = controller.spot;
+        final spot = widget.controller.spot;
+        if (spot == null && widget.controller.hasLoaded) {
+          return const _NoMeetupSpot();
+        }
         if (spot == null) return const SizedBox.shrink();
-        return _MapContent(spot: spot, providerConfig: providerConfig);
+        return _MapContent(
+          spot: spot,
+          controller: widget.controller,
+          providerConfig: widget.providerConfig,
+          mapBuilder: widget.mapBuilder,
+          directionsLauncher: widget.directionsLauncher,
+          userLocation: _userLocation,
+          isLocating: _isLocating,
+          onShowCurrentLocation: _showCurrentLocation,
+          placementRequest: _placementRequest,
+          onEditPin: _requestPinPlacement,
+          onRemovePin: () => _removePin(spot),
+        );
       },
     );
   }
 }
 
 class _MapContent extends StatelessWidget {
-  const _MapContent({required this.spot, required this.providerConfig});
+  const _MapContent({
+    required this.spot,
+    required this.controller,
+    required this.providerConfig,
+    required this.mapBuilder,
+    required this.directionsLauncher,
+    required this.userLocation,
+    required this.isLocating,
+    required this.onShowCurrentLocation,
+    required this.placementRequest,
+    required this.onEditPin,
+    required this.onRemovePin,
+  });
 
   final MeetupSpot spot;
+  final MeetupSpotController controller;
   final MapProviderConfig providerConfig;
+  final MeetupMapBuilder? mapBuilder;
+  final DirectionsLauncher directionsLauncher;
+  final MapCoordinate? userLocation;
+  final bool isLocating;
+  final VoidCallback onShowCurrentLocation;
+  final int placementRequest;
+  final VoidCallback onEditPin;
+  final VoidCallback onRemovePin;
+
+  Future<void> _openDirections(BuildContext context) async {
+    await confirmAndOpenDirections(context, spot, directionsLauncher);
+  }
+
+  Future<void> _copyLocation(BuildContext context) async {
+    await Clipboard.setData(
+      ClipboardData(text: '${spot.latitude},${spot.longitude}'),
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tailgate coordinates copied.')),
+      );
+    }
+  }
+
+  Future<void> _saveSpot(BuildContext context, MeetupSpot updatedSpot) async {
+    await controller.save(updatedSpot);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tailgate pin updated for the crew.')),
+      );
+    }
+  }
+
+  void _showPinDetails(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(spot.name, style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 6),
+              Text(spot.instructions),
+              const SizedBox(height: 6),
+              Text(
+                'Meet at ${spot.meetupTime} · '
+                '${spot.walkToStadiumMinutes} min walk to the stadium',
+                style: const TextStyle(color: AppColors.muted),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      key: const Key('edit-tailgate-pin'),
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        onEditPin();
+                      },
+                      icon: const Icon(Icons.edit_location_alt_rounded),
+                      label: const Text('Move pin'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton.outlined(
+                    key: const Key('remove-tailgate-pin'),
+                    tooltip: 'Remove tailgate pin',
+                    onPressed: () async {
+                      Navigator.pop(sheetContext);
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Remove tailgate pin?'),
+                          content: const Text(
+                            'The meetup location will no longer be visible to '
+                            'the crew.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              key: const Key('confirm-remove-tailgate-pin'),
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, true),
+                              child: const Text('Remove'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) onRemovePin();
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: const Key('pin-directions'),
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _openDirections(context);
+                  },
+                  icon: const Icon(Icons.directions_walk_rounded),
+                  label: const Text('Walking directions'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      key: const Key('map-screen'),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-      children: [
-        const AppHeader(),
-        const SizedBox(height: 24),
-        Text('The spot', style: Theme.of(context).textTheme.headlineLarge),
-        const SizedBox(height: 5),
-        Text(
-          '${spot.name} · ${spot.instructions}',
-          style: TextStyle(color: AppColors.muted),
-        ),
-        const SizedBox(height: 18),
-        AspectRatio(
-          aspectRatio: .95,
-          child: Container(
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: const Color(0xFFECE8DE),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final mapHeight = (constraints.maxHeight - 390).clamp(230.0, 410.0);
+        return ListView(
+          key: const Key('map-screen'),
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+          children: [
+            Text('The spot', style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 5),
+            Text(
+              '${spot.name} · ${spot.instructions}',
+              style: const TextStyle(color: AppColors.muted),
             ),
-            child: Stack(
+            const SizedBox(height: 8),
+            const _MapHelpCard(),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: mapHeight,
+              child: MeetupMap(
+                spot: spot,
+                providerConfig: providerConfig,
+                mapBuilder: mapBuilder,
+                onSpotMoved: (updatedSpot) => _saveSpot(context, updatedSpot),
+                onPinTapped: () => _showPinDetails(context),
+                userLocation: userLocation,
+                placementRequest: placementRequest,
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('show-current-location'),
+              onPressed: isLocating ? null : onShowCurrentLocation,
+              icon: isLocating
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      userLocation == null
+                          ? Icons.my_location_rounded
+                          : Icons.location_on_rounded,
+                    ),
+              label: Text(
+                userLocation == null
+                    ? 'Show my location'
+                    : 'Refresh my location',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
               children: [
-                const Positioned(
-                  left: -45,
-                  top: 62,
-                  child: CircleAvatar(
-                    radius: 105,
-                    backgroundColor: Color(0xFFCFE4C2),
-                  ),
+                Expanded(
+                  child: _MapStat(label: 'GET THERE', value: spot.meetupTime),
                 ),
-                const Positioned(
-                  right: -50,
-                  bottom: -40,
-                  child: CircleAvatar(
-                    radius: 100,
-                    backgroundColor: Color(0xFFDDD0EE),
-                  ),
-                ),
-                Positioned(
-                  left: MediaQuery.sizeOf(context).width * .42,
-                  top: 0,
-                  bottom: 0,
-                  child: Container(width: 13, color: Colors.white),
-                ),
-                Positioned(
-                  left: -20,
-                  right: -20,
-                  top: 145,
-                  child: Transform.rotate(
-                    angle: .10,
-                    child: Container(height: 12, color: Colors.white),
-                  ),
-                ),
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.location_pin,
-                        size: 62,
-                        color: Color(0xFFE8306C),
-                      ),
-                      Card(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 9,
-                          ),
-                          child: Text(
-                            spot.name,
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                      ),
-                    ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MapStat(
+                    label: 'WALK TO STADIUM',
+                    value: '${spot.walkToStadiumMinutes} min',
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _MapStat(label: 'GET THERE', value: spot.meetupTime),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const Key('get-directions'),
+                    onPressed: () => _openDirections(context),
+                    icon: const Icon(Icons.directions_walk_rounded),
+                    label: const Text('Directions'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('copy-map-location'),
+                    onPressed: () => _copyLocation(context),
+                    icon: const Icon(Icons.copy_rounded),
+                    label: const Text('Copy location'),
+                  ),
+                ),
+              ],
             ),
-            SizedBox(width: 10),
-            Expanded(
-              child: _MapStat(
-                label: 'WALK TO STADIUM',
-                value: '${spot.walkToStadiumMinutes} min',
-              ),
+            const SizedBox(height: 10),
+            Text(
+              '${spot.latitude.toStringAsFixed(5)}, '
+              '${spot.longitude.toStringAsFixed(5)} · ${providerConfig.attribution}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: AppColors.muted),
             ),
           ],
-        ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: null,
-          icon: Icon(Icons.directions_rounded),
-          label: Text('Get directions'),
-        ),
-        const SizedBox(height: 10),
-        TextButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.edit_location_alt_outlined),
-          label: const Text('Suggest a different spot'),
-        ),
-        Text(
-          '${spot.latitude.toStringAsFixed(4)}, '
-          '${spot.longitude.toStringAsFixed(4)} · ${providerConfig.attribution}',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 11, color: AppColors.muted),
-        ),
-      ],
+        );
+      },
     );
   }
+}
+
+class _MapHelpCard extends StatelessWidget {
+  const _MapHelpCard();
+
+  @override
+  Widget build(BuildContext context) => Card(
+    color: AppColors.purple.withValues(alpha: .07),
+    child: const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.touch_app_rounded, color: AppColors.purple),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Use +/− or double-click to zoom. Shift+double-click zooms out. '
+              'Tap the football to move or remove the pin.',
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _NoMeetupSpot extends StatelessWidget {
+  const _NoMeetupSpot();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+    child: Padding(
+      padding: EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.location_off_outlined, size: 52, color: AppColors.muted),
+          SizedBox(height: 12),
+          Text(
+            'No tailgate pin is set',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'The meetup location is no longer visible to the crew.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _MapError extends StatelessWidget {
@@ -183,6 +426,7 @@ class _MapError extends StatelessWidget {
 
 class _MapStat extends StatelessWidget {
   const _MapStat({required this.label, required this.value});
+
   final String label;
   final String value;
 
