@@ -4,8 +4,11 @@ Ugh, as if! Where is everyone? That’s where Tgate comes in. Tgate is an intera
 
 
 Project lead | Abdul Mutaal 
+
 Flutter UI developer | Tyler Lallande
+
 Backend Developer | David Zhong 
+
 QA lead | Brandon Avila
 
 ## Persistent tailgate server
