@@ -5,6 +5,8 @@ import 'package:tailgating/features/tailgate_setup/create_tailgate_screen.dart';
 import 'package:tailgating/features/tailgate_setup/tailgate_draft.dart';
 import 'package:tailgating/screens/tailgates_screen.dart';
 
+import 'test_map_builder.dart';
+
 void main() {
   testWidgets(
     'last member sees deletion warning and can cancel before leaving',
@@ -187,7 +189,14 @@ void main() {
       );
       expect(find.text('hidden-private'), findsNothing);
       expect(find.text('joined-private'), findsOneWidget);
-      await tester.ensureVisible(find.text('open-public'));
+      await tester.scrollUntilVisible(
+        find.text('open-public'),
+        250,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('tailgates-screen')),
+          matching: find.byType(Scrollable),
+        ).first,
+      );
       await tester.pumpAndSettle();
       expect(find.text('open-public'), findsOneWidget);
     },
@@ -203,7 +212,10 @@ void main() {
       TailgateDraft? created;
       await tester.pumpWidget(
         MaterialApp(
-          home: CreateTailgateScreen(onCreated: (draft) => created = draft),
+          home: CreateTailgateScreen(
+            onCreated: (draft) => created = draft,
+            mapBuilder: buildTestMap,
+          ),
         ),
       );
       expect(

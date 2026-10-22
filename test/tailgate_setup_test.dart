@@ -32,7 +32,11 @@ void main() {
   testWidgets('creates a tailgate and displays its invite code', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: CreateTailgateScreen()));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: CreateTailgateScreen(mapBuilder: buildTestMap),
+      ),
+    );
 
     await tester.tap(find.byKey(const Key('create-tailgate-next')));
     await tester.pump();

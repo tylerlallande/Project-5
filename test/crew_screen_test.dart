@@ -21,7 +21,7 @@ void main() {
       expect(find.byType(AppHeader), findsNothing);
       expect(
         (tester.getCenter(find.text('Crew HQ')).dy -
-                tester.getCenter(find.byTooltip('Invite crew')).dy)
+                tester.getCenter(find.byKey(const Key('invite-crew'))).dy)
             .abs(),
         lessThan(1),
       );

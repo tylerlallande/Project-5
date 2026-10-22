@@ -61,14 +61,11 @@ class _MapScreenState extends State<MapScreen> {
       final location = await widget.locationLoader();
       if (!mounted) return;
       setState(() => _userLocation = location);
-<<<<<<< HEAD
       widget.onLocationFound?.call(location);
-=======
       final accuracy = location.accuracyMeters;
       final accuracyText = accuracy > 0
           ? ' (about ±${accuracy.toStringAsFixed(0)} m accuracy)'
           : '';
->>>>>>> origin/main
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Your location is shown in blue$accuracyText.')),
       );

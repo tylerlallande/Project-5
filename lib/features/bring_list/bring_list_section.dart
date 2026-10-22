@@ -317,6 +317,7 @@ class _BringItemTile extends StatelessWidget {
             )
           else if (isMine)
             PopupMenuButton<String>(
+              key: Key('bring-item-actions-${item.id}'),
               tooltip: '',
               onSelected: (action) {
                 if (action == 'packed') onPackedChanged(!item.isPacked);

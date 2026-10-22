@@ -57,10 +57,7 @@ void main() {
   testWidgets('marks the current user item packed', (tester) async {
     await tester.pumpWidget(_testApp());
 
-    final actions = find.descendant(
-      of: find.byKey(const Key('bring-item-3')),
-      matching: find.byTooltip('Item actions'),
-    );
+    final actions = find.byKey(const Key('bring-item-actions-3'));
     await tester.tap(actions);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Mark packed'));

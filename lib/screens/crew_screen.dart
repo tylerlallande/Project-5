@@ -89,6 +89,7 @@ class _CrewScreenState extends State<CrewScreen> {
               ),
             ),
             IconButton.filledTonal(
+              key: const Key('invite-crew'),
               onPressed: () {},
               icon: const Icon(Icons.person_add_alt_1_rounded),
               tooltip: '',
