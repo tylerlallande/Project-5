@@ -1,4 +1,4 @@
-# tailgating
+# Tgate
 
 Ugh, as if! Where is everyone? That’s where Tgate comes in. Tgate is an interactive app that helps you meet up with friends, family, and others at a set location—making tailgating more enjoyable and less like you’re in The Maze Runner in real life.
 
