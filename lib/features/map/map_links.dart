@@ -39,7 +39,7 @@ Future<bool> confirmAndOpenDirections(
     builder: (dialogContext) => AlertDialog(
       title: const Text('Open Google Maps?'),
       content: Text(
-        'Bayou Blitz will open walking directions to ${spot.name} in '
+        'Tgate will open walking directions to ${spot.name} in '
         '$directionsDestinationLabel.',
       ),
       actions: [

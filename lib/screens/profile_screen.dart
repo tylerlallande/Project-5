@@ -6,18 +6,21 @@ import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 import '../features/profile/user_session.dart';
 import '../features/alerts/notification_service.dart';
+import '../features/tailgate_setup/tailgate_repository.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
     this.session = const UserSession(
-      displayName: 'BayouBlitz member',
+      displayName: 'Tgate member',
       isGuest: false,
     ),
+    this.repository,
   });
 
   final UserSession session;
+  final TailgateRepository? repository;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -124,7 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               Text(
                 food
                     ? 'Choose your dietary preferences. These are not shared with your crew yet.'
-                    : 'Choose which device alerts BayouBlitz may send.',
+                    : 'Choose which device alerts Tgate may send.',
               ),
               const SizedBox(height: 12),
               ...draft.entries.map(
@@ -166,7 +169,93 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _upgradeGuest() async {
-    await UserSession(displayName: _name, isGuest: true).upgrade();
+    var email = '';
+    var password = '';
+    var confirmPassword = '';
+    final form = GlobalKey<FormState>();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Keep this profile'),
+        scrollable: true,
+        content: Form(
+          key: form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Add an email and password to protect your profile and saved tailgates.',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                key: const Key('upgrade-email'),
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                onChanged: (value) => email = value,
+                decoration: const InputDecoration(labelText: 'Email'),
+                validator: (value) =>
+                    value == null || !value.trim().contains('@')
+                    ? 'Enter a valid email'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                key: const Key('upgrade-password'),
+                obscureText: true,
+                onChanged: (value) => password = value,
+                decoration: const InputDecoration(labelText: 'Password'),
+                validator: (value) => value == null || value.length < 8
+                    ? 'Use at least 8 characters'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                key: const Key('upgrade-confirm-password'),
+                obscureText: true,
+                onChanged: (value) => confirmPassword = value,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm password',
+                ),
+                validator: (_) => confirmPassword != password
+                    ? 'Passwords do not match'
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const Key('save-guest-account'),
+            onPressed: () {
+              if (form.currentState!.validate()) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: const Text('Save profile'),
+          ),
+        ],
+      ),
+    );
+    if (submitted != true || !mounted) return;
+    try {
+      if (widget.repository == null) {
+        throw StateError(
+          'Connect to the tailgate server to save this profile.',
+        );
+      }
+      await widget.repository!.createAccount(email.trim(), password);
+      await UserSession(displayName: _name, isGuest: true).upgrade();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+      return;
+    }
     if (!mounted) return;
     setState(() => _isGuest = false);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -286,7 +375,16 @@ class _ProfileScreenState extends State<ProfileScreen>
               title: 'Help and feedback',
               onTap: () => _showInfo(
                 'Help and feedback',
-                'Use Home to create a tailgate or join with an invite code. Open your tailgate to manage supplies, the meetup spot, and updates.\n\nTo report a problem, open an issue in the Project-5 GitHub repository with steps to reproduce it. Feedback submission is not connected in this app yet.',
+                'Getting started\n'
+                    'Host a tailgate from Home, join a public tailgate, or enter a private invite code. Once joined, Crew shows the saved members and bring list, while Map shows the meetup pin and directions.\n\n'
+                    'Bring list\n'
+                    'Any joined member can add or edit needed supplies. Claim an item when you are bringing it, then mark it packed when it is ready. These changes are saved on the tailgate server for the entire crew.\n\n'
+                    'Map and location\n'
+                    'The meetup pin belongs to the active tailgate. Location access is optional and is only requested when you choose to show your position or place the pin at your current location.\n\n'
+                    'Connection problems\n'
+                    'During local development, the Flutter website and tailgate API must both be running and reachable from your device. Use tool/run_mobile_web.sh to start both.\n\n'
+                    'Reporting a problem\n'
+                    'Open an issue in the Project-5 GitHub repository and include the device, browser, steps to reproduce the problem, and the exact error message.',
               ),
             ),
             _SettingsTile(
@@ -294,15 +392,27 @@ class _ProfileScreenState extends State<ProfileScreen>
               title: 'Privacy',
               onTap: () => _showInfo(
                 'Privacy',
-                'Sign-in is currently a demo: credentials are not verified or saved. Tailgates and memberships are saved on the server using an anonymous device session stored on this device. Signing out does not erase those memberships; clearing app or browser storage loses access to that device session. Profile settings reset when you sign out or restart the app. Food preferences are not sent to your crew.',
+                'Guest sessions\n'
+                    'A guest receives a private device-session token. The token, not your password, is stored in browser or app storage and connects you to your tailgates, memberships, claimed items, and check-in status. Clearing site or app storage can remove access to that guest session.\n\n'
+                    'Saved accounts\n'
+                    'Choosing Keep this profile requires an email and password. Email addresses are normalized before storage, and passwords are salted and hashed by the server rather than stored as readable text.\n\n'
+                    'Tailgate data\n'
+                    'Joined crew members can see names, check-in state, bring-list assignments, meetup details, and shared updates for that tailgate. Public tailgates appear in discovery; private tailgates require their invite code.\n\n'
+                    'Location and external maps\n'
+                    'Your device location is requested only after you choose a location action. Opening directions sends the selected pin coordinates to the external maps provider after confirmation.\n\n'
+                    'Local development\n'
+                    'When running from a laptop, app and API traffic stays on the configured network unless an external data provider or directions service is used.',
               ),
             ),
             _SettingsTile(
               icon: Icons.info_outline_rounded,
-              title: 'About BayouBlitz',
+              title: 'About Tgate',
               onTap: () => _showInfo(
-                'About BayouBlitz',
-                'BayouBlitz · Version 1.0.0\n\nYour game day, together. Plan LSU tailgates, coordinate supplies, and find your crew.\n\nProject 5 · Student project',
+                'About Tgate',
+                'Tgate · Version 1.0.0\n\n'
+                    'Your game day, together. Tgate helps a crew host or discover a tailgate, coordinate supplies without duplicates, share an invite, track arrivals, and navigate to one meetup point.\n\n'
+                    'The map experience uses MapLibre with OpenFreeMap data. Game schedules can be supplied through the configured college-football data service, while weather information supports game-day alerts.\n\n'
+                    'Tgate is Project 5, a student-built Flutter application with a Python and SQLite tailgate API.',
               ),
             ),
           ],

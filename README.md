@@ -1,6 +1,6 @@
-# tailgating
+# Tgate
 
-A new way to split responsibilites and cooperate to have the greatest tailgating experience.
+Plan the tailgate, coordinate the crew, and find the meetup spot.
 
 ## Persistent tailgate server
 
@@ -36,10 +36,10 @@ origin where the Flutter web app is hosted (for example,
 commas. Then build and run:
 
 ```sh
-docker build -t bayoublitz-api .
-docker run --name bayoublitz-api -p 8080:8080 \
+docker build -t tgate-api .
+docker run --name tgate-api -p 8080:8080 \
   -e ALLOWED_ORIGINS=https://tailgates.example.com \
-  -v bayoublitz-data:/data bayoublitz-api
+  -v tgate-data:/data tgate-api
 ```
 
 Set the Flutter app's API URL to the public HTTPS API address when building it:
@@ -112,7 +112,7 @@ It uses Flutter 3.47.7, installs the locked dependencies, runs static analysis
 and tests, and builds the release web app.
 
 After a successful run, open that run in the Actions tab and download the
-`bayou-blitz-web-<commit>` artifact. Artifacts are retained for 14 days.
+`tgate-web-<commit>` artifact. Artifacts are retained for 14 days.
 The artifact contains the contents of `build/web`, ready to serve with a
 static web server. This workflow builds the app; it does not deploy it.
 

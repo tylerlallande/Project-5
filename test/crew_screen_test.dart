@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tailgating/features/tailgate_setup/tailgate_draft.dart';
 import 'package:tailgating/screens/crew_screen.dart';
 import 'package:tailgating/widgets/app_header.dart';
 
@@ -12,9 +13,22 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: Scaffold(
-            body: CrewScreen(crewCount: 9, showBrandHeader: false),
+            body: CrewScreen(
+              members: const [
+                CrewMember(
+                  id: 'host',
+                  displayName: 'Abdul',
+                  isHost: true,
+                  checkedIn: true,
+                ),
+                CrewMember(id: 'guest', displayName: 'Taylor'),
+              ],
+              tailgateName: 'Saturday Crew',
+              inviteCode: 'ABC123',
+              showBrandHeader: false,
+            ),
           ),
         ),
       );
@@ -27,26 +41,49 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('see-all-crew')));
       await tester.pumpAndSettle();
-      expect(find.text('Crew members (9)'), findsOneWidget);
-      expect(find.byType(ListTile), findsNWidgets(9));
-      await tester.scrollUntilVisible(find.text('You'), 200);
-      expect(find.text('Checked in'), findsOneWidget);
+      expect(find.text('Crew members (2)'), findsOneWidget);
+      expect(find.byType(ListTile), findsNWidgets(2));
+      expect(find.text('Abdul'), findsOneWidget);
+      expect(find.text('Taylor'), findsOneWidget);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(find.text('Crew HQ'), findsOneWidget);
     },
   );
 
-  testWidgets('crew tab retains branding and starts with eight members', (
+  testWidgets('crew tab retains branding and starts with only the user', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: CrewScreen())),
+      const MaterialApp(
+        home: Scaffold(body: CrewScreen(currentUser: 'Abdul')),
+      ),
     );
     expect(find.byType(AppHeader), findsOneWidget);
     await tester.tap(find.byKey(const Key('see-all-crew')));
     await tester.pumpAndSettle();
-    expect(find.text('Crew members (8)'), findsOneWidget);
-    expect(find.text('You'), findsNothing);
+    expect(find.text('Crew members (1)'), findsOneWidget);
+    expect(find.text('Abdul'), findsOneWidget);
+  });
+
+  testWidgets('invite button exposes the saved tailgate code', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CrewScreen(
+            currentUser: 'Abdul',
+            tailgateName: 'Saturday Crew',
+            inviteCode: 'ABC123',
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('invite-crew')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('crew-invite-code')), findsOneWidget);
+    expect(find.text('ABC123'), findsOneWidget);
+    expect(find.byKey(const Key('copy-crew-invite')), findsOneWidget);
   });
 }

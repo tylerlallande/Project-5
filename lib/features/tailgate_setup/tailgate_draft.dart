@@ -66,6 +66,30 @@ enum TailgateStatus { upcoming, active, completed, archived }
 
 enum MembershipStatus { none, pending, joined, waitlisted }
 
+class CrewMember {
+  const CrewMember({
+    required this.id,
+    required this.displayName,
+    this.status = 'joined',
+    this.checkedIn = false,
+    this.isHost = false,
+  });
+
+  final String id;
+  final String displayName;
+  final String status;
+  final bool checkedIn;
+  final bool isHost;
+
+  factory CrewMember.fromJson(Map<String, dynamic> data) => CrewMember(
+    id: data['id'] as String,
+    displayName: data['displayName'] as String? ?? 'Tailgate member',
+    status: data['status'] as String? ?? 'joined',
+    checkedIn: data['checkedIn'] as bool? ?? false,
+    isHost: data['isHost'] as bool? ?? false,
+  );
+}
+
 class TailgateEntry {
   TailgateEntry({
     required this.id,
@@ -79,6 +103,7 @@ class TailgateEntry {
     this.pendingCount = 0,
     this.waitlistCount = 0,
     this.pendingMemberIds = const [],
+    this.members = const [],
   });
   final String id;
   final TailgateDraft draft;
@@ -91,6 +116,7 @@ class TailgateEntry {
   final int pendingCount;
   final int waitlistCount;
   final List<String> pendingMemberIds;
+  final List<CrewMember> members;
 
   bool get isPast =>
       draft.date.isBefore(DateTime.now().subtract(const Duration(days: 1)));
@@ -113,5 +139,8 @@ class TailgateEntry {
     waitlistCount: data['waitlistCount'] as int? ?? 0,
     pendingMemberIds:
         (data['pendingMembers'] as List?)?.cast<String>() ?? const [],
+    members: (data['members'] as List? ?? const [])
+        .map((item) => CrewMember.fromJson(item as Map<String, dynamic>))
+        .toList(),
   );
 }

@@ -55,6 +55,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Parade Ground'), findsOneWidget);
+    expect(find.byKey(const Key('map-center-on-pin')), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('12:15 PM'),
       250,

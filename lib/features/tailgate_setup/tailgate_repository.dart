@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'server_config.dart';
 import 'tailgate_draft.dart';
+import '../bring_list/bring_item.dart';
 
 class TailgateApiException implements Exception {
   TailgateApiException(this.message, {this.code = 'error'});
@@ -16,8 +17,9 @@ class TailgateApiException implements Exception {
 }
 
 abstract class TailgateRepository {
-  static TailgateRepository Function() create = () =>
-      ServerTailgateRepository();
+  static TailgateRepository Function({String? displayName}) create = ({
+    displayName,
+  }) => ServerTailgateRepository(displayName: displayName);
   Future<List<TailgateEntry>> list();
   Future<TailgateEntry> createTailgate(TailgateDraft draft);
   Future<TailgateEntry> lookup(String code);
@@ -47,6 +49,16 @@ abstract class TailgateRepository {
     String url,
     String caption,
   ) => throw UnsupportedError('Photo recaps are not supported.');
+  Future<List<BringItem>> listBringItems(TailgateEntry entry) =>
+      throw UnsupportedError('Bring lists are not supported.');
+  Future<BringItem> addBringItem(TailgateEntry entry, BringItem item) =>
+      throw UnsupportedError('Bring lists are not supported.');
+  Future<BringItem> updateBringItem(TailgateEntry entry, BringItem item) =>
+      throw UnsupportedError('Bring lists are not supported.');
+  Future<void> deleteBringItem(TailgateEntry entry, BringItem item) =>
+      throw UnsupportedError('Bring lists are not supported.');
+  Future<void> createAccount(String email, String password) =>
+      throw UnsupportedError('Accounts are not supported.');
 }
 
 class TailgatePhoto {
@@ -71,9 +83,11 @@ class TailgatePhoto {
 }
 
 class ServerTailgateRepository extends TailgateRepository {
-  ServerTailgateRepository({String? baseUrl})
-    : baseUrl = baseUrl ?? tailgateApiUrl();
+  ServerTailgateRepository({String? baseUrl, String? displayName})
+    : baseUrl = baseUrl ?? tailgateApiUrl(),
+      displayName = displayName?.trim();
   final String baseUrl;
+  final String? displayName;
   String? _token;
   Future<void>? _initializing;
 
@@ -86,7 +100,11 @@ class ServerTailgateRepository extends TailgateRepository {
           .post(
             Uri.parse('$baseUrl/sessions'),
             headers: {'Content-Type': 'application/json'},
-            body: '{}',
+            body: jsonEncode({
+              'displayName': displayName?.isNotEmpty == true
+                  ? displayName
+                  : 'Tailgate member',
+            }),
           )
           .timeout(const Duration(seconds: 10));
       final data = _decode(response) as Map<String, dynamic>;
@@ -96,6 +114,19 @@ class ServerTailgateRepository extends TailgateRepository {
           'Unable to save this device session. Enable browser storage and retry.',
         );
       }
+    }
+    if (displayName?.isNotEmpty == true) {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/profile'),
+            headers: {
+              'Authorization': 'Bearer $_token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'displayName': displayName}),
+          )
+          .timeout(const Duration(seconds: 10));
+      _decode(response);
     }
   }
 
@@ -252,4 +283,52 @@ class ServerTailgateRepository extends TailgateRepository {
           }) as List)
           .map((item) => TailgatePhoto.fromJson(item as Map<String, dynamic>))
           .toList();
+
+  @override
+  Future<List<BringItem>> listBringItems(TailgateEntry entry) async =>
+      (await _request('/tailgates/${entry.id}/bring-items') as List)
+          .map((item) => BringItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+  Map<String, dynamic> _bringItemBody(BringItem item) => {
+    'name': item.name,
+    'quantity': item.quantity,
+    'category': item.category.name,
+    'claimedByMe': item.claimedBy == displayName,
+    'isPacked': item.isPacked,
+  };
+
+  @override
+  Future<BringItem> addBringItem(TailgateEntry entry, BringItem item) async =>
+      BringItem.fromJson(
+        await _request(
+          '/tailgates/${entry.id}/bring-items',
+          _bringItemBody(item),
+        ) as Map<String, dynamic>,
+      );
+
+  @override
+  Future<BringItem> updateBringItem(
+    TailgateEntry entry,
+    BringItem item,
+  ) async => BringItem.fromJson(
+    await _request(
+      '/tailgates/${entry.id}/bring-items/${item.id}',
+      _bringItemBody(item),
+    ) as Map<String, dynamic>,
+  );
+
+  @override
+  Future<void> deleteBringItem(TailgateEntry entry, BringItem item) async {
+    await _request(
+      '/tailgates/${entry.id}/bring-items/${item.id}',
+      null,
+      'DELETE',
+    );
+  }
+
+  @override
+  Future<void> createAccount(String email, String password) async {
+    await _request('/account', {'email': email, 'password': password});
+  }
 }

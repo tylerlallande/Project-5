@@ -40,7 +40,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final enteredName = _usernameController.text.trim();
     await _enterApp(
       session: UserSession(
-        displayName: enteredName.isEmpty ? 'BayouBlitz member' : enteredName,
+        displayName: enteredName.isEmpty ? 'Tgate member' : enteredName,
         isGuest: false,
       ),
     );
@@ -164,7 +164,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'Welcome to Bayou Blitz',
+                    'Welcome to Tgate',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 10),

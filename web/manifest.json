@@ -1,11 +1,11 @@
 {
-    "name": "tailgating",
-    "short_name": "tailgating",
+    "name": "Tgate",
+    "short_name": "Tgate",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new way to split responsibilites and cooperate to have the greatest tailgating experience.",
+    "description": "Plan the tailgate, coordinate the crew, and find the meetup spot.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
