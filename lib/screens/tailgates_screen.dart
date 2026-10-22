@@ -12,6 +12,10 @@ class TailgatesScreen extends StatelessWidget {
     required this.onHost,
     required this.onInvite,
     required this.onOpen,
+    this.loading = false,
+    this.busy = false,
+    this.error,
+    this.onRefresh,
   });
   final List<TailgateEntry> entries;
   final ValueChanged<TailgateEntry> onJoin;
@@ -19,6 +23,10 @@ class TailgatesScreen extends StatelessWidget {
   final ValueChanged<TailgateEntry> onOpen;
   final VoidCallback onHost;
   final VoidCallback onInvite;
+  final bool loading;
+  final bool busy;
+  final String? error;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +39,21 @@ class TailgatesScreen extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         Text('Tailgates', style: Theme.of(context).textTheme.headlineLarge),
+        if (onRefresh != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              onPressed: busy || loading ? null : onRefresh,
+              tooltip: 'Refresh tailgates',
+              icon: const Icon(Icons.refresh),
+            ),
+          ),
+        if (loading || busy) const LinearProgressIndicator(),
+        if (error != null)
+          Text(
+            error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         const SizedBox(height: 8),
         const Text(
           'Your crew, your plans, and new people to meet.',
@@ -42,12 +65,12 @@ class TailgatesScreen extends StatelessWidget {
           runSpacing: 8,
           children: [
             FilledButton.icon(
-              onPressed: onHost,
+              onPressed: busy || loading ? null : onHost,
               icon: const Icon(Icons.add),
               label: const Text('Host a tailgate'),
             ),
             OutlinedButton.icon(
-              onPressed: onInvite,
+              onPressed: busy || loading ? null : onInvite,
               icon: const Icon(Icons.key),
               label: const Text('Join with code'),
             ),
@@ -56,7 +79,8 @@ class TailgatesScreen extends StatelessWidget {
         const SizedBox(height: 24),
         Text('My tailgates', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 12),
-        if (mine.isEmpty) const Text('Join or host a tailgate to see it here.'),
+        if (!loading && mine.isEmpty)
+          const Text('Join or host a tailgate to see it here.'),
         ...mine.map((entry) => _card(context, entry)),
         const SizedBox(height: 24),
         Text(
@@ -69,12 +93,12 @@ class TailgatesScreen extends StatelessWidget {
           style: TextStyle(color: AppColors.muted),
         ),
         const SizedBox(height: 12),
-        if (discover.isEmpty)
-          const Text('You’ve joined all the available public tailgates.'),
+        if (!loading && discover.isEmpty)
+          const Text('No public tailgates available to join.'),
         ...discover.map((entry) => _card(context, entry)),
         const SizedBox(height: 20),
         const Text(
-          'Demo tailgates · changes last for this session.',
+          'Tailgates and memberships are saved on the server.',
           style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
       ],
@@ -87,7 +111,9 @@ class TailgatesScreen extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: Text('Leave ${entry.draft.name}?'),
         content: Text(
-          entry.draft.isPublic
+          entry.memberCount == 1
+              ? 'You’re the last member. If you leave, this tailgate and its invite code will be permanently deleted.'
+              : entry.draft.isPublic
               ? 'It will be removed from My tailgates. You can join again from Public tailgates.'
               : 'It will be removed from My tailgates. You’ll need the invite code to rejoin.',
         ),
@@ -99,7 +125,7 @@ class TailgatesScreen extends StatelessWidget {
           FilledButton(
             key: const Key('confirm-leave-tailgate'),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Leave'),
+            child: Text(entry.memberCount == 1 ? 'Leave and delete' : 'Leave'),
           ),
         ],
       ),
@@ -122,6 +148,9 @@ class TailgatesScreen extends StatelessWidget {
             const SizedBox(height: 6),
             Text(entry.draft.game),
             Text(
+              '${entry.memberCount} ${entry.memberCount == 1 ? 'member' : 'members'}',
+            ),
+            Text(
               '${entry.draft.location} · ${entry.draft.meetupTime}',
               style: const TextStyle(color: AppColors.muted),
             ),
@@ -142,7 +171,9 @@ class TailgatesScreen extends StatelessWidget {
                       ),
                       TextButton.icon(
                         key: Key('leave-tailgate-${entry.id}'),
-                        onPressed: () => _confirmLeave(context, entry),
+                        onPressed: busy
+                            ? null
+                            : () => _confirmLeave(context, entry),
                         icon: const Icon(Icons.logout, size: 18),
                         label: const Text('Leave tailgate'),
                       ),
@@ -150,7 +181,7 @@ class TailgatesScreen extends StatelessWidget {
                   )
                 : FilledButton(
                     key: Key('join-public-${entry.id}'),
-                    onPressed: () => onJoin(entry),
+                    onPressed: busy ? null : () => onJoin(entry),
                     child: const Text('Join tailgate'),
                   ),
           ],

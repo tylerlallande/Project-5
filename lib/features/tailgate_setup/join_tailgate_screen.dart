@@ -5,8 +5,15 @@ import '../../theme/app_theme.dart';
 import 'tailgate_draft.dart';
 
 class JoinTailgateScreen extends StatefulWidget {
-  const JoinTailgateScreen({super.key, this.entries});
+  const JoinTailgateScreen({
+    super.key,
+    this.entries,
+    this.lookupOnServer,
+    this.joinOnServer,
+  });
   final List<TailgateEntry>? entries;
+  final Future<TailgateEntry> Function(String)? lookupOnServer;
+  final Future<TailgateEntry> Function(TailgateEntry)? joinOnServer;
 
   @override
   State<JoinTailgateScreen> createState() => _JoinTailgateScreenState();
@@ -17,6 +24,7 @@ class _JoinTailgateScreenState extends State<JoinTailgateScreen> {
   bool _showPreview = false;
   String? _error;
   TailgateEntry? _found;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -56,6 +64,7 @@ class _JoinTailgateScreenState extends State<JoinTailgateScreen> {
           TextField(
             key: const Key('join-code-field'),
             controller: _codeController,
+            enabled: !_busy,
             maxLength: 6,
             textCapitalization: TextCapitalization.characters,
             textAlign: TextAlign.center,
@@ -83,8 +92,8 @@ class _JoinTailgateScreenState extends State<JoinTailgateScreen> {
           const SizedBox(height: 14),
           FilledButton(
             key: const Key('find-tailgate-button'),
-            onPressed: _findTailgate,
-            child: const Text('Find tailgate'),
+            onPressed: _busy ? null : _findTailgate,
+            child: Text(_busy ? 'Connecting…' : 'Find tailgate'),
           ),
           if (_showPreview) ...[
             const SizedBox(height: 28),
@@ -115,7 +124,7 @@ class _JoinTailgateScreenState extends State<JoinTailgateScreen> {
             const SizedBox(height: 14),
             FilledButton.icon(
               key: const Key('join-crew-button'),
-              onPressed: () => Navigator.pop(context, _found ?? true),
+              onPressed: _busy ? null : _join,
               icon: const Icon(Icons.groups_rounded),
               label: const Text('Join the crew'),
             ),
@@ -125,8 +134,44 @@ class _JoinTailgateScreenState extends State<JoinTailgateScreen> {
     );
   }
 
-  void _findTailgate() {
+  Future<void> _join() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final joined = _found != null && widget.joinOnServer != null
+          ? await widget.joinOnServer!(_found!)
+          : _found ?? true;
+      if (mounted) Navigator.pop(context, joined);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _findTailgate() async {
     final code = _codeController.text.trim().toUpperCase();
+    if (widget.lookupOnServer != null && code.length == 6) {
+      setState(() {
+        _busy = true;
+        _showPreview = false;
+        _error = null;
+      });
+      try {
+        final result = await widget.lookupOnServer!(code);
+        if (mounted) {
+          setState(() {
+            _found = result;
+            _showPreview = true;
+          });
+        }
+      } catch (error) {
+        if (mounted) setState(() => _error = error.toString());
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+      return;
+    }
     _found = null;
     for (final entry in widget.entries ?? <TailgateEntry>[]) {
       if (entry.code == code) {

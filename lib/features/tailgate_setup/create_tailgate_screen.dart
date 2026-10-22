@@ -9,9 +9,11 @@ class CreateTailgateScreen extends StatefulWidget {
     super.key,
     this.onCreated,
     this.inviteCode = 'GEAUX7',
+    this.createOnServer,
   });
   final ValueChanged<TailgateDraft>? onCreated;
   final String inviteCode;
+  final Future<TailgateEntry> Function(TailgateDraft)? createOnServer;
 
   @override
   State<CreateTailgateScreen> createState() => _CreateTailgateScreenState();
@@ -31,6 +33,8 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
   String? _nameError;
   String? _locationError;
   TailgateDraft? _createdTailgate;
+  bool _saving = false;
+  String? _savedCode;
 
   @override
   void dispose() {
@@ -45,7 +49,7 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
     if (_createdTailgate != null) {
       return _InviteCodeResult(
         tailgate: _createdTailgate!,
-        code: widget.inviteCode,
+        code: _savedCode ?? widget.inviteCode,
         onDone: () => Navigator.pop(context, true),
       );
     }
@@ -298,7 +302,7 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
         children: [
           if (_step > 0) ...[
             OutlinedButton(
-              onPressed: () => setState(() => _step--),
+              onPressed: _saving ? null : () => setState(() => _step--),
               child: const Text('Back'),
             ),
             const SizedBox(width: 12),
@@ -308,8 +312,14 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
               key: Key(
                 _step == 2 ? 'create-tailgate-submit' : 'create-tailgate-next',
               ),
-              onPressed: _continue,
-              child: Text(_step == 2 ? 'Create tailgate' : 'Continue'),
+              onPressed: _saving ? null : _continue,
+              child: Text(
+                _saving
+                    ? 'Saving…'
+                    : _step == 2
+                    ? 'Create tailgate'
+                    : 'Continue',
+              ),
             ),
           ),
         ],
@@ -317,7 +327,7 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
     );
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     if (_step == 0) {
       final gameMissing = _gameController.text.trim().isEmpty;
       final nameMissing = _nameController.text.trim().isEmpty;
@@ -338,19 +348,34 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
       return;
     }
 
-    setState(() {
-      _createdTailgate = TailgateDraft(
-        game: _gameController.text.trim(),
-        name: _nameController.text.trim(),
-        date: _date,
-        kickoff: _kickoff.format(context),
-        meetupTime: _meetup.format(context),
-        location: _locationController.text.trim(),
-        vibe: _vibe,
-        isPublic: _isPublic,
-      );
-    });
-    widget.onCreated?.call(_createdTailgate!);
+    if (_saving) return;
+    final draft = TailgateDraft(
+      game: _gameController.text.trim(),
+      name: _nameController.text.trim(),
+      date: _date,
+      kickoff: _kickoff.format(context),
+      meetupTime: _meetup.format(context),
+      location: _locationController.text.trim(),
+      vibe: _vibe,
+      isPublic: _isPublic,
+    );
+    setState(() => _saving = true);
+    try {
+      final saved = await widget.createOnServer?.call(draft);
+      if (!mounted) return;
+      setState(() {
+        _createdTailgate = saved?.draft ?? draft;
+        _savedCode = saved?.code;
+      });
+      widget.onCreated?.call(_createdTailgate!);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _pickDate() async {

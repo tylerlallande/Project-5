@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
+import '../features/tailgate_setup/tailgate_draft.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -12,6 +13,8 @@ class HomeScreen extends StatefulWidget {
     required this.onJoinTailgate,
     required this.checkedIn,
     required this.onCheckInChanged,
+    required this.tailgates,
+    required this.onOpenEntry,
   });
 
   final ValueChanged<int> onNavigate;
@@ -20,6 +23,8 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onJoinTailgate;
   final bool checkedIn;
   final ValueChanged<bool> onCheckInChanged;
+  final List<TailgateEntry> tailgates;
+  final ValueChanged<TailgateEntry> onOpenEntry;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -55,24 +60,28 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 12),
               _buildQuickActions(),
               const SizedBox(height: 22),
-              _sectionTitle('My tailgates', '2 upcoming'),
-              const SizedBox(height: 12),
-              _tailgateTile(
-                color: AppColors.gold,
-                icon: Icons.local_fire_department_rounded,
-                date: 'SAT · OCT 10',
-                title: 'Gumbo & Geaux',
-                detail: 'Oak Grove · You’re hosting',
-                people: '$_crewCount going',
+              _sectionTitle(
+                'My tailgates',
+                '${widget.tailgates.length} joined',
               ),
-              const SizedBox(height: 10),
-              _tailgateTile(
-                color: const Color(0xFFE8DDF6),
-                icon: Icons.park_rounded,
-                date: 'SAT · OCT 24',
-                title: 'The Purple Lot',
-                detail: 'Parade Ground · Joined',
-                people: '5 going',
+              const SizedBox(height: 12),
+              if (widget.tailgates.isEmpty)
+                const Text('Join or host a tailgate to get started.'),
+              ...widget.tailgates.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _tailgateTile(
+                    color: AppColors.gold,
+                    icon: Icons.celebration,
+                    date:
+                        '${entry.draft.date.month}/${entry.draft.date.day}/${entry.draft.date.year}',
+                    title: entry.draft.name,
+                    detail:
+                        '${entry.draft.location} · ${entry.hosted ? 'Hosting' : 'Joined'}',
+                    people: '${entry.memberCount} going',
+                    onTap: () => widget.onOpenEntry(entry),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
@@ -324,11 +333,12 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required String detail,
     required String people,
+    VoidCallback? onTap,
   }) {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () => widget.onOpenTailgate(0),
+        onTap: onTap ?? () => widget.onOpenTailgate(0),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(

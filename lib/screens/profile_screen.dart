@@ -242,7 +242,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               title: 'Privacy',
               onTap: () => _showInfo(
                 'Privacy',
-                'Sign-in is currently a demo: credentials are not verified or saved. Profile settings stay in memory for this session and reset when you sign out or restart the app. Food preferences are not sent to your crew.',
+                'Sign-in is currently a demo: credentials are not verified or saved. Tailgates and memberships are saved on the server using an anonymous device session stored on this device. Signing out does not erase those memberships; clearing app or browser storage loses access to that device session. Profile settings reset when you sign out or restart the app. Food preferences are not sent to your crew.',
               ),
             ),
             _SettingsTile(

@@ -6,6 +6,56 @@ import 'package:tailgating/features/tailgate_setup/tailgate_draft.dart';
 import 'package:tailgating/screens/tailgates_screen.dart';
 
 void main() {
+  testWidgets(
+    'last member sees deletion warning and can cancel before leaving',
+    (tester) async {
+      final entry = TailgateEntry(
+        id: 'last',
+        code: 'LAST01',
+        joined: true,
+        hosted: true,
+        memberCount: 1,
+        draft: TailgateDraft(
+          game: 'LSU',
+          name: 'Last crew',
+          date: DateTime(2026, 10, 24),
+          kickoff: '6 PM',
+          meetupTime: 'Noon',
+          location: 'Oak Grove',
+          vibe: 'Food',
+        ),
+      );
+      var left = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TailgatesScreen(
+              entries: [entry],
+              onJoin: (_) {},
+              onLeave: (_) => left = true,
+              onHost: () {},
+              onInvite: () {},
+              onOpen: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.ensureVisible(find.byKey(const Key('leave-tailgate-last')));
+      await tester.tap(find.byKey(const Key('leave-tailgate-last')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('You’re the last member.'), findsOneWidget);
+      expect(find.text('Leave and delete'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(left, isFalse);
+      await tester.tap(find.byKey(const Key('leave-tailgate-last')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm-leave-tailgate')));
+      await tester.pumpAndSettle();
+      expect(left, isTrue);
+    },
+  );
+
   testWidgets('leaving can be cancelled and public tailgates can be rejoined', (
     tester,
   ) async {

@@ -37,6 +37,9 @@ jobs:
       - name: Run tests
         run: flutter test
 
+      - name: Test tailgate API
+        run: python3 -m unittest discover -s server -v
+
       - name: Build release web app
         run: flutter build web --release
 
