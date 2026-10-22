@@ -1,11 +1,17 @@
 # tailgating
 
-A new way to split responsibilites and cooperate to have the greatest tailgating experience.
+Ugh, as if! Where is everyone? That’s where Tgate comes in. Tgate is an interactive app that helps you meet up with friends, family, and others at a set location—making tailgating more enjoyable and less like you’re in The Maze Runner in real life.
+
+
+Project lead | Abdul Mutaal 
+Flutter UI developer | Tyler Lallande
+Backend Developer | David Zhong 
+QA lead | Brandon Avila
 
 ## Persistent tailgate server
 
 ### Run locally
-
+ 
 Run the API in one terminal (Python 3.10 or newer, no extra packages). The
 explicit host makes it reachable from an Android emulator as well as desktop:
 
