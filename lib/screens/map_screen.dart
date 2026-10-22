@@ -61,14 +61,25 @@ class _MapScreenState extends State<MapScreen> {
       final location = await widget.locationLoader();
       if (!mounted) return;
       setState(() => _userLocation = location);
+<<<<<<< HEAD
       widget.onLocationFound?.call(location);
+=======
+      final accuracy = location.accuracyMeters;
+      final accuracyText = accuracy > 0
+          ? ' (about ±${accuracy.toStringAsFixed(0)} m accuracy)'
+          : '';
+>>>>>>> origin/main
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Your location is now shown in blue.')),
+        SnackBar(content: Text('Your location is shown in blue$accuracyText.')),
       );
     } on LocationUnavailable catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.message),
+            duration: const Duration(seconds: 12),
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {

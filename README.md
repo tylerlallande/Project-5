@@ -4,13 +4,20 @@ A new way to split responsibilites and cooperate to have the greatest tailgating
 
 ## Persistent tailgate server
 
+<<<<<<< HEAD
 Run the API in one terminal (Python 3.10 or newer, no extra packages). The
 explicit host makes it reachable from an Android emulator as well as desktop:
+=======
+### Run locally
+
+Run the API in one terminal (Python 3.10 or newer, no extra packages):
+>>>>>>> origin/main
 
 ```sh
 python server/server.py --host 0.0.0.0
 ```
 
+<<<<<<< HEAD
 To populate the game picker and live score alerts, keep a College Football Data
 API key on the server:
 
@@ -20,6 +27,38 @@ CFBD_API_KEY=your_server_side_key python server/server.py --host 0.0.0.0
 
 Never pass this key through `--dart-define` or commit it to the Flutter app.
 Weather forecasts come through the server from Open-Meteo and need no API key.
+=======
+The server listens on port 8080 and stores data in `server/data/tailgates.sqlite3`.
+The default address is intended for a local app on the same computer.
+
+### Host it for multiple people
+
+The API can run in Docker on any host that supports containers. Configure a
+persistent disk mounted at `/data`; otherwise a container restart or redeploy may
+erase tailgates and device sessions. Set `ALLOWED_ORIGINS` to the exact HTTPS
+origin where the Flutter web app is hosted (for example,
+`https://tailgates.example.com`). For multiple app domains, separate origins with
+commas. Then build and run:
+
+```sh
+docker build -t bayoublitz-api .
+docker run --name bayoublitz-api -p 8080:8080 \
+  -e ALLOWED_ORIGINS=https://tailgates.example.com \
+  -v bayoublitz-data:/data bayoublitz-api
+```
+
+Set the Flutter app's API URL to the public HTTPS API address when building it:
+
+```sh
+flutter build web --release \
+  --dart-define=TAILGATE_API_URL=https://api.example.com
+```
+
+The host must expose that address over HTTPS and keep `/data` on persistent
+storage. Configure the host's TLS/domain and persistent volume in its dashboard.
+The current app uses anonymous device sessions, so each browser/device remains a
+distinct member identity; clearing its local storage loses access to that identity.
+>>>>>>> origin/main
 
 Run Flutter in another terminal:
 
@@ -28,6 +67,7 @@ flutter pub get
 flutter run -d web-server --web-hostname 127.0.0.1 --web-port 5173
 ```
 
+<<<<<<< HEAD
 The app uses `http://127.0.0.1:8080` on desktop/web and
 `http://10.0.2.2:8080` on an Android emulator. To point it at a different API,
 use `--dart-define=TAILGATE_API_URL=http://your-server:8080` when running or building.
@@ -36,6 +76,14 @@ device can reach; neither `127.0.0.1` nor `10.0.2.2` points to your Mac there.
 The included server is for development and is not a hosted service. For a hosted
 deployment, place it behind HTTPS and
 set `TAILGATE_ALLOWED_ORIGINS=https://your-app.example` to the exact web origin.
+=======
+The app uses `http://127.0.0.1:8080` by default. To point it at another API,
+use `--dart-define=TAILGATE_API_URL=https://api.example.com` when running or building.
+Local HTTP browser origins remain allowed for development; hosted browser origins
+must be listed in the API's `ALLOWED_ORIGINS`. Android emulators can use
+`http://10.0.2.2:8080` for a local development server where networking and the
+app's HTTP policy allow it.
+>>>>>>> origin/main
 
 Tailgates, invite codes, memberships, waitlists, join requests, reports, blocks,
 photo recap links, and anonymous device sessions are stored in
