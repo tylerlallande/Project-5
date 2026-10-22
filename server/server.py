@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import secrets
 import sqlite3
 import uuid
@@ -134,14 +135,20 @@ class Store:
             return {"deleted": count == 1}
 
 
-def handler(store):
+def handler(store, allowed_origins=None):
+    configured_origins = set(allowed_origins or ())
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass  # Do not log bearer credentials or invite codes.
 
         def origin_allowed(self):
             origin = self.headers.get("Origin")
-            return not origin or (urlparse(origin).hostname in ("127.0.0.1", "localhost") and urlparse(origin).scheme == "http")
+            if not origin:
+                return True
+            parsed = urlparse(origin)
+            is_local = parsed.scheme == "http" and parsed.hostname in ("127.0.0.1", "localhost")
+            return is_local or origin in configured_origins
 
         def respond(self, status, data):
             raw = json.dumps(data).encode()
@@ -209,9 +216,14 @@ def handler(store):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--db", default=str(Path(__file__).parent / "data" / "tailgates.sqlite3"))
+    parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8080")))
+    parser.add_argument("--db", default=os.environ.get(
+        "DB_PATH", str(Path(__file__).parent / "data" / "tailgates.sqlite3")))
+    parser.add_argument("--allowed-origins", default=os.environ.get("ALLOWED_ORIGINS", ""),
+                        help="Comma-separated exact browser origins, such as https://app.example.com")
     args = parser.parse_args()
-    service = ThreadingHTTPServer(("127.0.0.1", args.port), handler(Store(args.db)))
-    print(f"BayouBlitz API listening on http://127.0.0.1:{args.port}", flush=True)
+    origins = {origin.strip() for origin in args.allowed_origins.split(",") if origin.strip()}
+    service = ThreadingHTTPServer((args.host, args.port), handler(Store(args.db), origins))
+    print(f"BayouBlitz API listening on {args.host}:{args.port}; database: {args.db}", flush=True)
     service.serve_forever()

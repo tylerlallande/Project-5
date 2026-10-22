@@ -4,11 +4,44 @@ A new way to split responsibilites and cooperate to have the greatest tailgating
 
 ## Persistent tailgate server
 
+### Run locally
+
 Run the API in one terminal (Python 3.10 or newer, no extra packages):
 
 ```sh
 python server/server.py
 ```
+
+The server listens on port 8080 and stores data in `server/data/tailgates.sqlite3`.
+The default address is intended for a local app on the same computer.
+
+### Host it for multiple people
+
+The API can run in Docker on any host that supports containers. Configure a
+persistent disk mounted at `/data`; otherwise a container restart or redeploy may
+erase tailgates and device sessions. Set `ALLOWED_ORIGINS` to the exact HTTPS
+origin where the Flutter web app is hosted (for example,
+`https://tailgates.example.com`). For multiple app domains, separate origins with
+commas. Then build and run:
+
+```sh
+docker build -t bayoublitz-api .
+docker run --name bayoublitz-api -p 8080:8080 \
+  -e ALLOWED_ORIGINS=https://tailgates.example.com \
+  -v bayoublitz-data:/data bayoublitz-api
+```
+
+Set the Flutter app's API URL to the public HTTPS API address when building it:
+
+```sh
+flutter build web --release \
+  --dart-define=TAILGATE_API_URL=https://api.example.com
+```
+
+The host must expose that address over HTTPS and keep `/data` on persistent
+storage. Configure the host's TLS/domain and persistent volume in its dashboard.
+The current app uses anonymous device sessions, so each browser/device remains a
+distinct member identity; clearing its local storage loses access to that identity.
 
 Run Flutter in another terminal:
 
@@ -17,11 +50,12 @@ flutter pub get
 flutter run -d web-server --web-hostname 127.0.0.1 --web-port 5173
 ```
 
-The app uses `http://127.0.0.1:8080` by default. To point it at a different API,
-use `--dart-define=TAILGATE_API_URL=http://your-server:8080` when running or building.
-The included development server listens only on loopback and permits local HTTP
-browser origins; it is not a hosted service. Android emulators can use
-`http://10.0.2.2:8080` where emulator networking and the app's HTTP policy allow it.
+The app uses `http://127.0.0.1:8080` by default. To point it at another API,
+use `--dart-define=TAILGATE_API_URL=https://api.example.com` when running or building.
+Local HTTP browser origins remain allowed for development; hosted browser origins
+must be listed in the API's `ALLOWED_ORIGINS`. Android emulators can use
+`http://10.0.2.2:8080` for a local development server where networking and the
+app's HTTP policy allow it.
 
 Tailgates, invite codes, memberships, and anonymous device sessions are stored in
 `server/data/tailgates.sqlite3` (ignored by Git). Back up that database; deleting it

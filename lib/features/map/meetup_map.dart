@@ -136,8 +136,8 @@ class _MeetupMapState extends State<MeetupMap> {
     final initialCenter = userLocation == null
         ? point
         : Geographic(
-            lon: (point.lon + userLocation.longitude) / 2,
-            lat: (point.lat + userLocation.latitude) / 2,
+            lon: userLocation.longitude,
+            lat: userLocation.latitude,
           );
     return MapLibreMap(
       key: ValueKey(
@@ -147,10 +147,8 @@ class _MeetupMapState extends State<MeetupMap> {
       options: MapOptions(
         initStyle: widget.providerConfig.styleUrl,
         initCenter: initialCenter,
-        initZoom:
-            widget.providerConfig.defaultZoom.toDouble() -
-            (userLocation == null ? 0 : 1),
-        gestures: const MapGestures.none(),
+        initZoom: widget.providerConfig.defaultZoom.toDouble(),
+        gestures: const MapGestures.all(),
       ),
       onMapCreated: (controller) {
         _mapController = controller;
