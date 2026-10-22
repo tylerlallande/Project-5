@@ -46,7 +46,7 @@ jobs:
       - name: Upload web build
         uses: actions/upload-artifact@v4
         with:
-          name: bayou-blitz-web-${{ github.sha }}
+          name: tgate-web-${{ github.sha }}
           path: build/web/
           if-no-files-found: error
           retention-days: 14

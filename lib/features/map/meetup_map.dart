@@ -85,6 +85,22 @@ class _MeetupMapState extends State<MeetupMap> {
     if (mounted) setState(() => _currentZoom = zoom);
   }
 
+  Future<void> _centerOnPin() async {
+    final controller = _mapController;
+    if (controller == null) return;
+    await controller.animateCamera(
+      center: Geographic(lon: widget.spot.longitude, lat: widget.spot.latitude),
+      zoom: widget.providerConfig.defaultZoom.toDouble(),
+      nativeDuration: const Duration(milliseconds: 300),
+      webMaxDuration: const Duration(milliseconds: 300),
+    );
+    if (mounted) {
+      setState(
+        () => _currentZoom = widget.providerConfig.defaultZoom.toDouble(),
+      );
+    }
+  }
+
   void _forwardScrollToPage(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
     final scrollable = Scrollable.maybeOf(context);
@@ -153,10 +169,7 @@ class _MeetupMapState extends State<MeetupMap> {
     final userLocation = widget.userLocation;
     final initialCenter = userLocation == null
         ? point
-        : Geographic(
-            lon: userLocation.longitude,
-            lat: userLocation.latitude,
-          );
+        : Geographic(lon: userLocation.longitude, lat: userLocation.latitude);
     return MapLibreMap(
       key: ValueKey(
         'meetup-map-${widget.spot.latitude}-${widget.spot.longitude}-'
@@ -289,6 +302,7 @@ class _MeetupMapState extends State<MeetupMap> {
                 enabled: _mapController != null,
                 onZoomIn: () => _changeZoom(1),
                 onZoomOut: () => _changeZoom(-1),
+                onRecenter: _centerOnPin,
               ),
             ),
             if (widget.onSpotMoved != null)
@@ -331,11 +345,13 @@ class _MapZoomControls extends StatelessWidget {
     required this.enabled,
     required this.onZoomIn,
     required this.onZoomOut,
+    required this.onRecenter,
   });
 
   final bool enabled;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
+  final VoidCallback onRecenter;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -358,6 +374,13 @@ class _MapZoomControls extends StatelessWidget {
           tooltip: '',
           onPressed: enabled ? onZoomOut : null,
           icon: const Icon(Icons.remove_rounded),
+        ),
+        const SizedBox(width: 36, child: Divider(height: 1)),
+        IconButton(
+          key: const Key('map-center-on-pin'),
+          tooltip: '',
+          onPressed: enabled ? onRecenter : null,
+          icon: const Icon(Icons.center_focus_strong_rounded),
         ),
       ],
     ),

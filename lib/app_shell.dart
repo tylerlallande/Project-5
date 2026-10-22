@@ -30,7 +30,7 @@ class AppShell extends StatefulWidget {
     super.key,
     this.mapBuilder,
     this.session = const UserSession(
-      displayName: 'BayouBlitz member',
+      displayName: 'Tgate member',
       isGuest: false,
     ),
   });
@@ -143,7 +143,7 @@ class _AppShellState extends State<AppShell> {
             id: '${entry.id}-waitlist',
             kind: GameDayAlertKind.membership,
             title: 'You’re on the waitlist',
-            message: 'BayouBlitz will keep your place for ${entry.draft.name}.',
+            message: 'Tgate will keep your place for ${entry.draft.name}.',
             createdAt: now,
           ),
         );
@@ -217,7 +217,7 @@ class _AppShellState extends State<AppShell> {
         final weather = await _gameRepository.weather(
           latitude: latitude,
           longitude: longitude,
-          eventTime: entry.draft.date,
+          eventTime: _dateWithTime(entry.draft.date, entry.draft.kickoff),
         );
         if (weather?.needsAlert ?? false) {
           alerts.add(
@@ -526,7 +526,37 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  int get _crewCount => _checkedIn ? 9 : 8;
+  TailgateEntry? get _activeCrewTailgate {
+    final joined = _tailgates.where((entry) => entry.joined).toList()
+      ..sort((a, b) => a.draft.date.compareTo(b.draft.date));
+    return joined.isEmpty ? null : joined.first;
+  }
+
+  List<CrewMember> get _activeCrewMembers {
+    final entry = _activeCrewTailgate;
+    if (entry?.members.isNotEmpty == true) return entry!.members;
+    return [
+      CrewMember(
+        id: 'current-user',
+        displayName: widget.session.displayName,
+        checkedIn: _checkedIn,
+        isHost: entry?.hosted ?? true,
+      ),
+    ];
+  }
+
+  CrewScreen _crewScreen({bool showBrandHeader = true}) {
+    final entry = _activeCrewTailgate;
+    return CrewScreen(
+      members: _activeCrewMembers,
+      currentUser: widget.session.displayName,
+      tailgateName: entry?.draft.name,
+      inviteCode: entry?.code ?? '',
+      showBrandHeader: showBrandHeader,
+      entry: entry,
+      repository: _repository,
+    );
+  }
 
   void _openHomeAction(int index) {
     if (index == 1) {
@@ -534,9 +564,7 @@ class _AppShellState extends State<AppShell> {
         MaterialPageRoute<void>(
           builder: (_) => Scaffold(
             appBar: AppBar(title: const Text('Crew')),
-            body: SafeArea(
-              child: CrewScreen(crewCount: _crewCount, showBrandHeader: false),
-            ),
+            body: SafeArea(child: _crewScreen(showBrandHeader: false)),
           ),
         ),
       );
@@ -549,7 +577,9 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    _repository = TailgateRepository.create();
+    _repository = TailgateRepository.create(
+      displayName: widget.session.displayName,
+    );
     _mapRepository = InMemoryMapRepository([
       lsuDefaultSpot(tailgateId: 'unselected'),
     ]);
@@ -591,6 +621,7 @@ class _AppShellState extends State<AppShell> {
           mapBuilder: widget.mapBuilder,
           entry: joined.first,
           currentUser: widget.session.displayName,
+          repository: _repository,
         ),
       ),
     );
@@ -677,8 +708,12 @@ class _AppShellState extends State<AppShell> {
               onReport: _reportTailgate,
               onManageRequests: _manageJoinRequests,
             ),
-            CrewScreen(crewCount: _crewCount),
-            if (_pageIndex == 3)
+            _activeCrewTailgate == null
+                ? const _NoActiveTailgate(feature: 'crew')
+                : _crewScreen(),
+            if (_activeCrewTailgate == null)
+              const _NoActiveTailgate(feature: 'map')
+            else if (_pageIndex == 3)
               MapScreen(
                 key: const ValueKey('active-map-screen'),
                 controller: _meetupSpotController,
@@ -688,7 +723,7 @@ class _AppShellState extends State<AppShell> {
               )
             else
               const SizedBox.expand(key: ValueKey('inactive-map-placeholder')),
-            ProfileScreen(session: widget.session),
+            ProfileScreen(session: widget.session, repository: _repository),
           ],
         ),
       ),
@@ -730,4 +765,31 @@ class _AppShellState extends State<AppShell> {
       ),
     );
   }
+}
+
+class _NoActiveTailgate extends StatelessWidget {
+  const _NoActiveTailgate({required this.feature});
+  final String feature;
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.celebration_outlined, size: 56),
+          const SizedBox(height: 16),
+          Text(
+            'Not in a tailgate',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Host or join a tailgate to use the $feature features.',
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
 }

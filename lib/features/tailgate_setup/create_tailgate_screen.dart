@@ -58,14 +58,15 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
 
   Future<void> _chooseGame() async {
     setState(() => _loadingGames = true);
-    final games = await (widget.gameRepository ?? GameRepository()).schedule();
+    final repository = widget.gameRepository ?? GameRepository();
+    final games = await repository.schedule();
     if (!mounted) return;
     setState(() => _loadingGames = false);
     if (games.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'No connected schedule is available. You can enter the game manually.',
+            repository.scheduleNotice ?? 'No games are available for this season. You can enter the game manually.',
           ),
         ),
       );

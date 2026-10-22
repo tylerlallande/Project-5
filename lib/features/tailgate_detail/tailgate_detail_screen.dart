@@ -8,6 +8,7 @@ import '../map/meetup_map.dart';
 import '../map/meetup_spot.dart';
 import '../map/meetup_spot_controller.dart';
 import '../tailgate_setup/tailgate_draft.dart';
+import '../tailgate_setup/tailgate_repository.dart';
 
 class TailgateDetailScreen extends StatelessWidget {
   const TailgateDetailScreen({
@@ -19,6 +20,7 @@ class TailgateDetailScreen extends StatelessWidget {
     this.directionsLauncher = openDirections,
     this.entry,
     this.currentUser = 'Crew member',
+    this.repository,
   });
 
   final int initialTab;
@@ -28,6 +30,7 @@ class TailgateDetailScreen extends StatelessWidget {
   final DirectionsLauncher directionsLauncher;
   final TailgateEntry? entry;
   final String currentUser;
+  final TailgateRepository? repository;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +59,11 @@ class TailgateDetailScreen extends StatelessWidget {
               child: TabBarView(
                 key: Key('tailgate-tab-view'),
                 children: [
-                  _BringTab(currentUser: currentUser),
+                  _BringTab(
+                    currentUser: currentUser,
+                    entry: entry,
+                    repository: repository,
+                  ),
                   _SpotTab(
                     controller: meetupSpotController,
                     providerConfig: mapProviderConfig,
@@ -192,16 +199,26 @@ class _TailgateTabBar extends StatelessWidget {
 }
 
 class _BringTab extends StatelessWidget {
-  const _BringTab({required this.currentUser});
+  const _BringTab({
+    required this.currentUser,
+    required this.entry,
+    required this.repository,
+  });
 
   final String currentUser;
+  final TailgateEntry? entry;
+  final TailgateRepository? repository;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       key: const Key('tailgate-bring-content'),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
-      child: BringListSection(currentUser: currentUser),
+      child: BringListSection(
+        currentUser: currentUser,
+        entry: entry,
+        repository: repository,
+      ),
     );
   }
 }

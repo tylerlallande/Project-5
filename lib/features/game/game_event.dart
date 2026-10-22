@@ -23,18 +23,40 @@ class GameEvent {
   bool get isLive => status.toLowerCase() == 'in_progress';
   bool get isFinal => status.toLowerCase() == 'completed';
 
-  factory GameEvent.fromJson(Map<String, dynamic> data) => GameEvent(
-    id: '${data['id']}',
-    homeTeam: data['home_team'] as String? ?? 'Home team',
-    awayTeam: data['away_team'] as String? ?? 'Away team',
-    startTime:
-        DateTime.tryParse(data['start_date'] as String? ?? '') ??
-        DateTime.now(),
-    status: data['status'] as String? ?? 'scheduled',
-    homePoints: data['home_points'] as int?,
-    awayPoints: data['away_points'] as int?,
-    venue: data['venue'] as String?,
-  );
+  factory GameEvent.fromJson(Map<String, dynamic> data) {
+    String teamName(Object? value, String fallback) {
+      if (value is Map<String, dynamic>) {
+        return value['name'] as String? ?? fallback;
+      }
+      return value as String? ?? fallback;
+    }
+
+    int? points(Object? team, Object? direct) {
+      final value = team is Map<String, dynamic> ? team['points'] : direct;
+      return value is num ? value.toInt() : null;
+    }
+
+    final home = data['homeTeam'] ?? data['home_team'];
+    final away = data['awayTeam'] ?? data['away_team'];
+    final completed = data['completed'] == true;
+    return GameEvent(
+      id: '${data['id']}',
+      homeTeam: teamName(home, 'Home team'),
+      awayTeam: teamName(away, 'Away team'),
+      startTime:
+          DateTime.tryParse(
+            (data['startDate'] ?? data['start_date']) as String? ?? '',
+          ) ??
+          DateTime.now(),
+      status:
+          data['status'] as String? ?? (completed ? 'completed' : 'scheduled'),
+      homePoints: points(home, data['homePoints'] ?? data['home_points']),
+      awayPoints: points(away, data['awayPoints'] ?? data['away_points']),
+      venue: data['venue'] is Map<String, dynamic>
+          ? (data['venue'] as Map<String, dynamic>)['name'] as String?
+          : data['venue'] as String?,
+    );
+  }
 }
 
 class TailgateWeather {
@@ -54,5 +76,5 @@ class TailgateWeather {
       precipitationProbability >= 50 || windSpeed >= 25 || weatherCode >= 95;
 
   String get summary =>
-      '${temperature.round()}° · $precipitationProbability% rain · ${windSpeed.round()} mph wind';
+      '${temperature.round()}°F · $precipitationProbability% rain · ${windSpeed.round()} mph wind';
 }

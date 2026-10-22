@@ -1,34 +1,112 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../features/bring_list/bring_list_section.dart';
+import '../features/tailgate_setup/tailgate_draft.dart';
+import '../features/tailgate_setup/tailgate_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 
 class CrewScreen extends StatefulWidget {
   const CrewScreen({
     super.key,
-    this.crewCount = 8,
+    this.members = const [],
+    this.currentUser = 'You',
+    this.tailgateName,
+    this.inviteCode = '',
     this.showBrandHeader = true,
+    this.entry,
+    this.repository,
   });
-  final int crewCount;
+  final List<CrewMember> members;
+  final String currentUser;
+  final String? tailgateName;
+  final String inviteCode;
   final bool showBrandHeader;
+  final TailgateEntry? entry;
+  final TailgateRepository? repository;
 
   @override
   State<CrewScreen> createState() => _CrewScreenState();
 }
 
 class _CrewScreenState extends State<CrewScreen> {
-  List<(String, String, String, Color)> get _members => [
-    ('J', 'Jordan', 'Grill', AppColors.purple),
-    ('M', 'Marcus', 'Drinks', const Color(0xFFC53A36)),
-    ('A', 'Alex', 'Chairs', AppColors.success),
-    ('T', 'Taylor', 'Music', const Color(0xFFE48725)),
-    ('S', 'Sam', 'Snacks', AppColors.purple),
-    ('C', 'Casey', 'Games', AppColors.success),
-    ('M', 'Morgan', 'Coolers', const Color(0xFFC53A36)),
-    ('R', 'Riley', 'Setup', const Color(0xFFE48725)),
-    if (widget.crewCount > 8) ('Y', 'You', 'Checked in', AppColors.purple),
-  ];
+  List<CrewMember> get _members => widget.members.isNotEmpty
+      ? widget.members
+      : [
+          CrewMember(
+            id: 'current-user',
+            displayName: widget.currentUser,
+            isHost: true,
+          ),
+        ];
+
+  Color _memberColor(int index) => const [
+    AppColors.purple,
+    Color(0xFFC53A36),
+    AppColors.success,
+    Color(0xFFE48725),
+  ][index % 4];
+
+  String _initial(String name) {
+    final clean = name.trim();
+    return clean.isEmpty ? '?' : clean[0].toUpperCase();
+  }
+
+  Future<void> _showInvite() async {
+    if (widget.inviteCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Host or join a tailgate before inviting crew.'),
+        ),
+      );
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Invite your crew'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Share this code so another person can join:'),
+            const SizedBox(height: 12),
+            SelectableText(
+              widget.inviteCode,
+              key: const Key('crew-invite-code'),
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 3,
+                color: AppColors.purple,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Done'),
+          ),
+          FilledButton.icon(
+            key: const Key('copy-crew-invite'),
+            onPressed: () async {
+              await Clipboard.setData(
+                ClipboardData(
+                  text:
+                      'Join ${widget.tailgateName ?? 'my tailgate'} in Tgate with code ${widget.inviteCode}',
+                ),
+              );
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            },
+            icon: const Icon(Icons.copy_rounded),
+            label: const Text('Copy invite'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showMembers() {
     Navigator.of(context).push(
@@ -40,25 +118,29 @@ class _CrewScreenState extends State<CrewScreen> {
               key: const Key('crew-members-list'),
               padding: const EdgeInsets.all(20),
               children: [
-                const Text(
-                  'Gumbo & Geaux · Sample crew',
-                  style: TextStyle(color: AppColors.muted),
+                Text(
+                  widget.tailgateName ?? 'Your tailgate crew',
+                  style: const TextStyle(color: AppColors.muted),
                 ),
                 const SizedBox(height: 12),
-                ..._members.map(
-                  (member) => ListTile(
+                ..._members.indexed.map(
+                  (item) => ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: member.$4,
+                      backgroundColor: _memberColor(item.$1),
                       child: Text(
-                        member.$1,
+                        _initial(item.$2.displayName),
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
-                    title: Text(member.$2),
-                    subtitle: Text(member.$3),
-                    trailing: const Icon(
-                      Icons.check_circle_outline,
-                      color: AppColors.success,
+                    title: Text(item.$2.displayName),
+                    subtitle: Text(item.$2.isHost ? 'Host' : 'Crew member'),
+                    trailing: Icon(
+                      item.$2.checkedIn
+                          ? Icons.check_circle
+                          : Icons.check_circle_outline,
+                      color: item.$2.checkedIn
+                          ? AppColors.success
+                          : AppColors.muted,
                     ),
                   ),
                 ),
@@ -90,38 +172,38 @@ class _CrewScreenState extends State<CrewScreen> {
             ),
             IconButton.filledTonal(
               key: const Key('invite-crew'),
-              onPressed: () {},
+              onPressed: _showInvite,
               icon: const Icon(Icons.person_add_alt_1_rounded),
               tooltip: '',
             ),
           ],
         ),
         const SizedBox(height: 5),
-        const Text(
-          'People, supplies, and updates for Gumbo & Geaux.',
+        Text(
+          widget.tailgateName == null
+              ? 'Host or join a tailgate to build your crew.'
+              : 'People and supplies for ${widget.tailgateName}.',
           style: TextStyle(color: AppColors.muted),
         ),
         const SizedBox(height: 20),
         _buildCrewCard(),
         const SizedBox(height: 22),
-        const BringListSection(),
-        const SizedBox(height: 22),
-        _sectionHeader('Game-day updates', '2 new'),
-        const SizedBox(height: 12),
-        const _UpdateCard(
-          initials: 'J',
-          name: 'Jordan · Grill master',
-          message: 'Tent’s up by the gold flag 💜',
-          time: '11:05 AM',
-          color: AppColors.purple,
+        BringListSection(
+          currentUser: widget.currentUser,
+          entry: widget.entry,
+          repository: widget.repository,
         ),
-        const SizedBox(height: 9),
-        const _UpdateCard(
-          initials: 'M',
-          name: 'Marcus · Drinks',
-          message: 'Ice is here. Who has the speaker?',
-          time: '11:40 AM',
-          color: Color(0xFFC53A36),
+        const SizedBox(height: 22),
+        _sectionHeader('Game-day updates', '0 new'),
+        const SizedBox(height: 12),
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'No crew updates yet.',
+              style: TextStyle(color: AppColors.muted),
+            ),
+          ),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -164,7 +246,7 @@ class _CrewScreenState extends State<CrewScreen> {
                   ),
                 ),
                 Text(
-                  '${widget.crewCount} GOING',
+                  '${_members.length} GOING',
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
@@ -179,16 +261,16 @@ class _CrewScreenState extends State<CrewScreen> {
               alignment: WrapAlignment.spaceAround,
               spacing: 16,
               runSpacing: 12,
-              children: _members
+              children: _members.indexed
                   .take(4)
                   .map(
-                    (member) => Column(
+                    (item) => Column(
                       children: [
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor: member.$4,
+                          backgroundColor: _memberColor(item.$1),
                           child: Text(
-                            member.$1,
+                            _initial(item.$2.displayName),
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
@@ -197,14 +279,18 @@ class _CrewScreenState extends State<CrewScreen> {
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          member.$2,
+                          item.$2.displayName,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         Text(
-                          member.$3,
+                          item.$2.isHost
+                              ? 'Host'
+                              : item.$2.checkedIn
+                              ? 'Checked in'
+                              : 'Crew',
                           style: const TextStyle(
                             fontSize: 9,
                             color: AppColors.muted,
@@ -244,65 +330,5 @@ class _CrewScreenState extends State<CrewScreen> {
         ),
       ),
     ],
-  );
-}
-
-class _UpdateCard extends StatelessWidget {
-  const _UpdateCard({
-    required this.initials,
-    required this.name,
-    required this.message,
-    required this.time,
-    required this.color,
-  });
-  final String initials;
-  final String name;
-  final String message;
-  final String time;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: color,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.purple,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(message),
-                const SizedBox(height: 5),
-                Text(
-                  time,
-                  style: const TextStyle(fontSize: 10, color: AppColors.muted),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
   );
 }

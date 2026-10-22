@@ -1,20 +1,19 @@
-# TGate
+# Tgate
 
 Ugh, as if! Where is everyone? That’s where Tgate comes in. Tgate is an interactive app that helps you meet up with friends, family, and others at a set location—making tailgating more enjoyable and less like you’re in The Maze Runner in real life.
 
-
-Project lead | Abdul Mutaal 
+Project lead | Abdul Mutaal
 
 Flutter UI developer | Tyler Lallande
 
-Backend Developer | David Zhong 
+Backend Developer | David Zhong
 
 QA lead | Brandon Avila
 
 ## Persistent tailgate server
 
 ### Run locally
- 
+
 Run the API in one terminal (Python 3.10 or newer, no extra packages). The
 explicit host makes it reachable from an Android emulator as well as desktop:
 
@@ -45,10 +44,10 @@ origin where the Flutter web app is hosted (for example,
 commas. Then build and run:
 
 ```sh
-docker build -t bayoublitz-api .
-docker run --name bayoublitz-api -p 8080:8080 \
+docker build -t tgate-api .
+docker run --name tgate-api -p 8080:8080 \
   -e ALLOWED_ORIGINS=https://tailgates.example.com \
-  -v bayoublitz-data:/data bayoublitz-api
+  -v tgate-data:/data tgate-api
 ```
 
 Set the Flutter app's API URL to the public HTTPS API address when building it:
@@ -121,7 +120,7 @@ It uses Flutter 3.47.7, installs the locked dependencies, runs static analysis
 and tests, and builds the release web app.
 
 After a successful run, open that run in the Actions tab and download the
-`bayou-blitz-web-<commit>` artifact. Artifacts are retained for 14 days.
+`tgate-web-<commit>` artifact. Artifacts are retained for 14 days.
 The artifact contains the contents of `build/web`, ready to serve with a
 static web server. This workflow builds the app; it does not deploy it.
 
