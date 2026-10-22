@@ -1,7 +1,7 @@
 import 'package:tailgating/features/tailgate_setup/tailgate_draft.dart';
 import 'package:tailgating/features/tailgate_setup/tailgate_repository.dart';
 
-class MemoryTailgateRepository implements TailgateRepository {
+class MemoryTailgateRepository extends TailgateRepository {
   final entries = <TailgateEntry>[
     for (final data in [
       ('gumbo', 'Gumbo & Geaux', 'GEAUX7', false, true),
@@ -12,6 +12,7 @@ class MemoryTailgateRepository implements TailgateRepository {
         id: data.$1,
         code: data.$3,
         joined: data.$5,
+        memberCount: 8,
         draft: TailgateDraft(
           game: data.$1 == 'gumbo' ? 'LSU vs. Alabama' : 'LSU game day',
           name: data.$2,

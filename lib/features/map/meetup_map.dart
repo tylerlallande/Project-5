@@ -45,6 +45,7 @@ class _MeetupMapState extends State<MeetupMap> {
   static const double _maximumZoom = 20;
 
   bool _isMovingPin = false;
+  bool _mapReady = false;
   MapController? _mapController;
   double? _currentZoom;
   DateTime? _lastPointerDown;
@@ -53,8 +54,19 @@ class _MeetupMapState extends State<MeetupMap> {
   @override
   void didUpdateWidget(covariant MeetupMap oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final mapContentChanged =
+        widget.spot.latitude != oldWidget.spot.latitude ||
+        widget.spot.longitude != oldWidget.spot.longitude ||
+        widget.userLocation?.latitude != oldWidget.userLocation?.latitude ||
+        widget.userLocation?.longitude != oldWidget.userLocation?.longitude ||
+        widget.providerConfig.styleUrl != oldWidget.providerConfig.styleUrl;
+    if (mapContentChanged) {
+      _mapReady = false;
+      _mapController = null;
+      _currentZoom = null;
+    }
     if (widget.placementRequest != oldWidget.placementRequest) {
-      setState(() => _isMovingPin = true);
+      _isMovingPin = true;
     }
   }
 
@@ -110,8 +122,14 @@ class _MeetupMapState extends State<MeetupMap> {
   }
 
   void _handleMapEvent(MapEvent event) {
+    if (event is MapEventStyleLoaded && !_mapReady && mounted) {
+      setState(() => _mapReady = true);
+    }
     if (event case MapEventMoveCamera(:final camera)) {
       _currentZoom = camera.zoom;
+      if (!_mapReady && mounted) {
+        setState(() => _mapReady = true);
+      }
     }
     if (!_isMovingPin || widget.onSpotMoved == null) return;
     if (event case MapEventClick(:final point)) {
@@ -153,74 +171,78 @@ class _MeetupMapState extends State<MeetupMap> {
         gestures: const MapGestures.none(),
       ),
       onMapCreated: (controller) {
-        _mapController = controller;
-        _currentZoom = controller.getCamera().zoom;
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() => _mapController = controller);
+        } else {
+          _mapController = controller;
+        }
       },
       onEvent: _handleMapEvent,
-      children: [
-        WidgetLayer(
-          markers: [
-            if (userLocation != null)
-              Marker(
-                point: Geographic(
-                  lon: userLocation.longitude,
-                  lat: userLocation.latitude,
-                ),
-                size: const Size.square(30),
-                child: Semantics(
-                  label: 'Your current location',
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 4),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black26, blurRadius: 7),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.person_pin_circle_rounded,
-                      color: Colors.white,
-                      size: 17,
-                    ),
-                  ),
-                ),
-              ),
-            Marker(
-              point: point,
-              size: Size.square(widget.compact ? 34 : 42),
-              child: Semantics(
-                button: true,
-                label: 'Open ${widget.spot.name} meetup spot details',
-                child: GestureDetector(
-                  key: const Key('meetup-map-pin'),
-                  onTap: widget.onPinTapped,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.purple,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.gold, width: 4),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 8,
-                          offset: Offset(0, 3),
+      children: _mapReady
+          ? [
+              WidgetLayer(
+                markers: [
+                  if (userLocation != null)
+                    Marker(
+                      point: Geographic(
+                        lon: userLocation.longitude,
+                        lat: userLocation.latitude,
+                      ),
+                      size: const Size.square(30),
+                      child: Semantics(
+                        label: 'Your current location',
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 4),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 7),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.person_pin_circle_rounded,
+                            color: Colors.white,
+                            size: 17,
+                          ),
                         ),
-                      ],
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.sports_football_rounded,
-                      color: Colors.white,
-                      size: 20,
+                  Marker(
+                    point: point,
+                    size: Size.square(widget.compact ? 34 : 42),
+                    child: Semantics(
+                      button: true,
+                      label: 'Open ${widget.spot.name} meetup spot details',
+                      child: GestureDetector(
+                        key: const Key('meetup-map-pin'),
+                        onTap: widget.onPinTapped,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppColors.purple,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.gold, width: 4),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 8,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.sports_football_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ),
-          ],
-        ),
-      ],
+            ]
+          : const [],
     );
   }
 
@@ -328,14 +350,14 @@ class _MapZoomControls extends StatelessWidget {
       children: [
         IconButton(
           key: const Key('map-zoom-in'),
-          tooltip: 'Zoom in',
+          tooltip: '',
           onPressed: enabled ? onZoomIn : null,
           icon: const Icon(Icons.add_rounded),
         ),
         const SizedBox(width: 36, child: Divider(height: 1)),
         IconButton(
           key: const Key('map-zoom-out'),
-          tooltip: 'Zoom out',
+          tooltip: '',
           onPressed: enabled ? onZoomOut : null,
           icon: const Icon(Icons.remove_rounded),
         ),

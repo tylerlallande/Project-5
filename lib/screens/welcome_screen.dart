@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_shell.dart';
 import '../features/map/meetup_map.dart';
+import '../features/profile/user_session.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 
@@ -16,19 +17,90 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
   bool _hidePassword = true;
+  final _usernameController = TextEditingController();
 
-  void _enterApp() {
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enterApp({required UserSession session}) async {
     FocusScope.of(context).unfocus();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => AppShell(mapBuilder: widget.mapBuilder),
+        builder: (_) =>
+            AppShell(mapBuilder: widget.mapBuilder, session: session),
       ),
     );
+    await session.save();
+  }
+
+  Future<void> _signIn() async {
+    final enteredName = _usernameController.text.trim();
+    await _enterApp(
+      session: UserSession(
+        displayName: enteredName.isEmpty ? 'BayouBlitz member' : enteredName,
+        isGuest: false,
+      ),
+    );
+  }
+
+  Future<void> _continueAsGuest() async {
+    var enteredName = '';
+    final formKey = GlobalKey<FormState>();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('What should your crew call you?'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            key: const Key('guest-name-field'),
+            autofocus: true,
+            maxLength: 40,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Display name',
+              hintText: 'Your name',
+            ),
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Enter your name to continue'
+                : null,
+            onChanged: (value) => enteredName = value,
+            onFieldSubmitted: (_) {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, enteredName.trim());
+              }
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const Key('guest-name-continue'),
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, enteredName.trim());
+              }
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (name != null && mounted) {
+      await _enterApp(session: UserSession(displayName: name, isGuest: true));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const Key('welcome-screen'),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -103,6 +175,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   const SizedBox(height: 24),
                   TextField(
                     key: const Key('login-username'),
+                    controller: _usernameController,
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
                     enableSuggestions: false,
@@ -122,7 +195,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     autocorrect: false,
                     enableSuggestions: false,
                     textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _enterApp(),
+                    onSubmitted: (_) => _signIn(),
                     decoration: InputDecoration(
                       labelText: 'Password',
                       hintText: 'Enter your password',
@@ -131,9 +204,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         borderRadius: BorderRadius.all(Radius.circular(14)),
                       ),
                       suffixIcon: IconButton(
-                        tooltip: _hidePassword
-                            ? 'Show password'
-                            : 'Hide password',
+                        key: const Key('password-visibility-toggle'),
+                        tooltip: '',
                         onPressed: () =>
                             setState(() => _hidePassword = !_hidePassword),
                         icon: Icon(
@@ -152,7 +224,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       foregroundColor: AppColors.deepPurple,
                       minimumSize: const Size.fromHeight(54),
                     ),
-                    onPressed: _enterApp,
+                    onPressed: _signIn,
                     icon: const Icon(Icons.login_rounded),
                     label: const Text('Sign in'),
                   ),
@@ -162,13 +234,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(54),
                     ),
-                    onPressed: _enterApp,
+                    onPressed: _continueAsGuest,
                     icon: const Icon(Icons.arrow_forward_rounded),
                     label: const Text('Continue as guest'),
                   ),
                   const SizedBox(height: 14),
                   const Text(
-                    'Demo sign-in · no account or password required yet.',
+                    'Guests can join immediately after choosing a display name.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),

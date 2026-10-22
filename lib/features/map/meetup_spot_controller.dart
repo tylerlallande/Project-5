@@ -7,7 +7,7 @@ class MeetupSpotController extends ChangeNotifier {
   MeetupSpotController(this._repository, {required this.tailgateId});
 
   final MapRepository _repository;
-  final String tailgateId;
+  String tailgateId;
 
   MeetupSpot? _spot;
   Object? _error;
@@ -18,6 +18,14 @@ class MeetupSpotController extends ChangeNotifier {
   Object? get error => _error;
   bool get isLoading => _isLoading;
   bool get hasLoaded => _hasLoaded;
+
+  Future<void> selectTailgate(String nextTailgateId) async {
+    if (tailgateId == nextTailgateId && _hasLoaded) return;
+    tailgateId = nextTailgateId;
+    _spot = null;
+    _hasLoaded = false;
+    await load();
+  }
 
   Future<void> load() async {
     _isLoading = true;

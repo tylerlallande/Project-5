@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/app_theme.dart';
+import '../map/current_location.dart';
+import '../map/map_provider_config.dart';
+import '../map/map_defaults.dart';
+import '../map/meetup_map.dart';
+import '../map/meetup_spot.dart';
 import 'tailgate_draft.dart';
+import '../game/game_event.dart';
+import '../game/game_repository.dart';
 
 class CreateTailgateScreen extends StatefulWidget {
   const CreateTailgateScreen({
@@ -10,10 +17,16 @@ class CreateTailgateScreen extends StatefulWidget {
     this.onCreated,
     this.inviteCode = 'GEAUX7',
     this.createOnServer,
+    this.gameRepository,
+    this.mapBuilder,
+    this.locationLoader = loadCurrentLocation,
   });
   final ValueChanged<TailgateDraft>? onCreated;
   final String inviteCode;
   final Future<TailgateEntry> Function(TailgateDraft)? createOnServer;
+  final GameRepository? gameRepository;
+  final MeetupMapBuilder? mapBuilder;
+  final LocationLoader locationLoader;
 
   @override
   State<CreateTailgateScreen> createState() => _CreateTailgateScreenState();
@@ -22,25 +35,88 @@ class CreateTailgateScreen extends StatefulWidget {
 class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
   final _gameController = TextEditingController();
   final _nameController = TextEditingController();
-  final _locationController = TextEditingController(text: 'Oak Grove');
+  final _locationController = TextEditingController();
+  final _capacityController = TextEditingController();
   int _step = 0;
-  DateTime _date = DateTime(2026, 10, 24);
+  DateTime _date = DateTime.now().add(const Duration(days: 7));
   TimeOfDay _kickoff = const TimeOfDay(hour: 18, minute: 30);
   TimeOfDay _meetup = const TimeOfDay(hour: 11, minute: 0);
   String _vibe = 'Food & drinks';
   bool _isPublic = false;
+  bool _requiresApproval = false;
   String? _gameError;
   String? _nameError;
   String? _locationError;
   TailgateDraft? _createdTailgate;
   bool _saving = false;
   String? _savedCode;
+  String? _gameId;
+  bool _loadingGames = false;
+  bool _locating = false;
+  MapCoordinate? _userLocation;
+  MeetupSpot? _selectedSpot = lsuDefaultSpot(tailgateId: 'draft');
+
+  Future<void> _chooseGame() async {
+    setState(() => _loadingGames = true);
+    final games = await (widget.gameRepository ?? GameRepository()).schedule();
+    if (!mounted) return;
+    setState(() => _loadingGames = false);
+    if (games.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No connected schedule is available. You can enter the game manually.',
+          ),
+        ),
+      );
+      return;
+    }
+    final selected = await showModalBottomSheet<GameEvent>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            Text(
+              'Choose a game',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 12),
+            ...games.map(
+              (game) => ListTile(
+                leading: const Icon(Icons.sports_football_rounded),
+                title: Text(game.matchup),
+                subtitle: Text(
+                  '${game.startTime.month}/${game.startTime.day}/${game.startTime.year}'
+                  '${game.venue == null ? '' : ' · ${game.venue}'}',
+                ),
+                onTap: () => Navigator.pop(context, game),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _gameId = selected.id;
+      _gameController.text = selected.matchup;
+      _date = selected.startTime;
+      _kickoff = TimeOfDay.fromDateTime(selected.startTime);
+      if ((selected.venue ?? '').isNotEmpty) {
+        _locationController.text = selected.venue!;
+      }
+      _gameError = null;
+    });
+  }
 
   @override
   void dispose() {
     _gameController.dispose();
     _nameController.dispose();
     _locationController.dispose();
+    _capacityController.dispose();
     super.dispose();
   }
 
@@ -109,6 +185,15 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
           onChanged: (value) => setState(() => _isPublic = value),
         ),
         const SizedBox(height: 18),
+        OutlinedButton.icon(
+          key: const Key('choose-scheduled-game'),
+          onPressed: _loadingGames ? null : _chooseGame,
+          icon: const Icon(Icons.event_available_outlined),
+          label: Text(
+            _loadingGames ? 'Loading schedule…' : 'Choose from live schedule',
+          ),
+        ),
+        const SizedBox(height: 12),
         TextField(
           key: const Key('create-game-field'),
           controller: _gameController,
@@ -121,6 +206,29 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
           ),
           onChanged: (_) => setState(() => _gameError = null),
         ),
+        const SizedBox(height: 18),
+        TextField(
+          key: const Key('tailgate-capacity-field'),
+          controller: _capacityController,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(
+            labelText: 'Guest capacity (optional)',
+            hintText: 'Leave blank for no limit',
+            prefixIcon: Icon(Icons.groups_2_outlined),
+          ),
+        ),
+        if (_isPublic)
+          SwitchListTile(
+            key: const Key('join-approval-toggle'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Approve join requests'),
+            subtitle: const Text(
+              'New guests wait for the host to approve them.',
+            ),
+            value: _requiresApproval,
+            onChanged: (value) => setState(() => _requiresApproval = value),
+          ),
         const SizedBox(height: 18),
         TextField(
           key: const Key('create-name-field'),
@@ -202,6 +310,8 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
           ),
           onChanged: (_) => setState(() => _locationError = null),
         ),
+        const SizedBox(height: 18),
+        _buildLocationPicker(),
         const SizedBox(height: 20),
         const Text(
           'Vibe',
@@ -222,6 +332,119 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
               .toList(),
         ),
       ],
+    );
+  }
+
+  Widget _buildLocationPicker() {
+    final spot = _selectedSpot;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Tailgate pin',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'The map starts at LSU. Select “Set tailgate pin” and tap the exact meetup spot, or use your current location.',
+          style: TextStyle(color: AppColors.muted),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            key: const Key('create-tailgate-map-start'),
+            onPressed: _locating ? null : _startLocationPin,
+            icon: _locating
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.my_location_rounded),
+            label: Text(
+              _locating ? 'Finding your location…' : 'Use my current location',
+            ),
+          ),
+        ),
+        if (spot != null) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 330,
+            child: MeetupMap(
+              key: const ValueKey('create-tailgate-meetup-map'),
+              spot: spot,
+              providerConfig: MapProviderConfig.fromEnvironment(),
+              mapBuilder: widget.mapBuilder,
+              userLocation: _userLocation,
+              onSpotMoved: (updated) => setState(() => _selectedSpot = updated),
+              onPinTapped: _showCreationPinActions,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${spot.latitude.toStringAsFixed(5)}, ${spot.longitude.toStringAsFixed(5)}',
+            style: const TextStyle(color: AppColors.muted),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _startLocationPin() async {
+    setState(() => _locating = true);
+    try {
+      final location = await widget.locationLoader();
+      if (!mounted) return;
+      setState(() {
+        _userLocation = location;
+        _selectedSpot = MeetupSpot(
+          tailgateId: 'draft',
+          name: _locationController.text.trim().isEmpty
+              ? 'Tailgate spot'
+              : _locationController.text.trim(),
+          instructions: 'Meet the crew at the pinned tailgate location.',
+          latitude: location.latitude,
+          longitude: location.longitude,
+          meetupTime: _meetup.format(context),
+          walkToStadiumMinutes: 0,
+        );
+      });
+    } on LocationUnavailable catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Your location could not be found.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  void _showCreationPinActions() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListTile(
+          leading: const Icon(Icons.delete_outline_rounded),
+          title: const Text('Remove tailgate pin'),
+          subtitle: const Text(
+            'The map will return to its LSU starting point.',
+          ),
+          onTap: () {
+            Navigator.pop(sheetContext);
+            setState(() {
+              _userLocation = null;
+              _selectedSpot = lsuDefaultSpot(tailgateId: 'draft');
+            });
+          },
+        ),
+      ),
     );
   }
 
@@ -250,6 +473,20 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
                   value: _gameController.text.trim(),
                 ),
                 _ReviewRow(
+                  icon: Icons.groups_2_outlined,
+                  label: 'Capacity',
+                  value: _capacityController.text.trim().isEmpty
+                      ? 'No limit'
+                      : '${_capacityController.text.trim()} guests',
+                ),
+                _ReviewRow(
+                  icon: Icons.how_to_reg_outlined,
+                  label: 'Joining',
+                  value: _requiresApproval
+                      ? 'Host approval required'
+                      : 'Immediate when space is available',
+                ),
+                _ReviewRow(
                   icon: Icons.celebration_rounded,
                   label: 'Tailgate',
                   value: _nameController.text.trim(),
@@ -269,6 +506,14 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
                   icon: Icons.location_on_outlined,
                   label: 'Location',
                   value: _locationController.text.trim(),
+                ),
+                _ReviewRow(
+                  icon: Icons.map_outlined,
+                  label: 'Map pin',
+                  value: _selectedSpot == null
+                      ? 'Not set'
+                      : '${_selectedSpot!.latitude.toStringAsFixed(5)}, '
+                            '${_selectedSpot!.longitude.toStringAsFixed(5)}',
                 ),
                 _ReviewRow(
                   icon: Icons.auto_awesome_rounded,
@@ -358,6 +603,11 @@ class _CreateTailgateScreenState extends State<CreateTailgateScreen> {
       location: _locationController.text.trim(),
       vibe: _vibe,
       isPublic: _isPublic,
+      capacity: int.tryParse(_capacityController.text.trim()),
+      requiresApproval: _isPublic && _requiresApproval,
+      gameId: _gameId,
+      latitude: _selectedSpot?.latitude,
+      longitude: _selectedSpot?.longitude,
     );
     setState(() => _saving = true);
     try {

@@ -46,7 +46,7 @@ class TailgateTests(unittest.TestCase):
         self.assertFalse(found['joined'])
         self.store.join(self.guest, private['id'], private['code'])
         self.assertTrue(self.store.list(self.guest)[0]['joined'])
-        public = self.store.create(self.host, self.draft)
+        public = self.store.create(self.host, self.draft | {'date': '2026-10-25'})
         visible = next(x for x in self.store.list(self.guest) if x['id'] == public['id'])
         self.assertEqual(visible['code'], '')
 
@@ -76,6 +76,47 @@ class TailgateTests(unittest.TestCase):
         with self.assertRaises(ApiError):
             self.store.leave(self.guest, event['id'], True)
         self.assertEqual(len(self.store.list(self.host)), 1)
+
+    def test_capacity_waitlist_promotes_when_a_member_leaves(self):
+        event = self.store.create(self.host, self.draft | {'capacity': 2})
+        self.store.join(self.guest, event['id'], '')
+        waiting = self.store.user(self.store.session()['token'])
+        self.assertEqual(
+            self.store.join(waiting, event['id'], '')['membershipStatus'],
+            'waitlisted',
+        )
+        self.store.leave(self.guest, event['id'])
+        self.assertTrue(self.store.list(waiting)[0]['joined'])
+
+    def test_approval_archive_delete_report_and_photo_recap(self):
+        event = self.store.create(
+            self.host,
+            self.draft | {'requiresApproval': True},
+        )
+        pending = self.store.join(self.guest, event['id'], '')
+        self.assertEqual(pending['membershipStatus'], 'pending')
+        host_view = self.store.list(self.host)[0]
+        self.assertEqual(host_view['pendingMembers'], [self.guest])
+        self.store.approve(self.host, event['id'], self.guest)
+        photos = self.store.photos(
+            self.guest,
+            event['id'],
+            'https://example.com/recap.jpg',
+            'Game day',
+        )
+        self.assertEqual(photos[0]['caption'], 'Game day')
+        reporter = self.store.user(self.store.session()['token'])
+        self.store.report(reporter, event['id'], 'Not a good fit', True)
+        self.assertEqual(self.store.list(reporter), [])
+        self.store.set_status(self.host, event['id'], 'completed')
+        self.store.set_status(self.host, event['id'], 'archived')
+        self.assertTrue(self.store.delete(self.host, event['id'])['deleted'])
+
+    def test_duplicate_tailgate_for_same_host_game_and_day_is_rejected(self):
+        self.store.create(self.host, self.draft)
+        with self.assertRaises(ApiError) as error:
+            self.store.create(self.host, self.draft | {'name': 'Duplicate'})
+        self.assertEqual(error.exception.code, 'duplicate_tailgate')
 
 
 if __name__ == '__main__':

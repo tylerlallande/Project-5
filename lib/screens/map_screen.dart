@@ -17,6 +17,7 @@ class MapScreen extends StatefulWidget {
     this.mapBuilder,
     this.directionsLauncher = openDirections,
     this.locationLoader = loadCurrentLocation,
+    this.onLocationFound,
   });
 
   final MeetupSpotController controller;
@@ -24,6 +25,7 @@ class MapScreen extends StatefulWidget {
   final MeetupMapBuilder? mapBuilder;
   final DirectionsLauncher directionsLauncher;
   final LocationLoader locationLoader;
+  final ValueChanged<MapCoordinate>? onLocationFound;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -59,6 +61,7 @@ class _MapScreenState extends State<MapScreen> {
       final location = await widget.locationLoader();
       if (!mounted) return;
       setState(() => _userLocation = location);
+      widget.onLocationFound?.call(location);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Your location is now shown in blue.')),
       );
@@ -78,6 +81,34 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<void> _createPinAtCurrentLocation() async {
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    try {
+      final location = await widget.locationLoader();
+      await widget.controller.save(
+        MeetupSpot(
+          tailgateId: widget.controller.tailgateId,
+          name: 'Tailgate spot',
+          instructions: 'Meet the crew at the pinned location.',
+          latitude: location.latitude,
+          longitude: location.longitude,
+          meetupTime: 'See tailgate plan',
+          walkToStadiumMinutes: 0,
+        ),
+      );
+      widget.onLocationFound?.call(location);
+      if (mounted) setState(() => _userLocation = location);
+    } on LocationUnavailable catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -91,7 +122,10 @@ class _MapScreenState extends State<MapScreen> {
         }
         final spot = widget.controller.spot;
         if (spot == null && widget.controller.hasLoaded) {
-          return const _NoMeetupSpot();
+          return _NoMeetupSpot(
+            isLocating: _isLocating,
+            onCreateAtCurrentLocation: _createPinAtCurrentLocation,
+          );
         }
         if (spot == null) return const SizedBox.shrink();
         return _MapContent(
@@ -200,7 +234,7 @@ class _MapContent extends StatelessWidget {
                   const SizedBox(width: 10),
                   IconButton.outlined(
                     key: const Key('remove-tailgate-pin'),
-                    tooltip: 'Remove tailgate pin',
+                    tooltip: '',
                     onPressed: () async {
                       Navigator.pop(sheetContext);
                       final confirmed = await showDialog<bool>(
@@ -380,26 +414,42 @@ class _MapHelpCard extends StatelessWidget {
 }
 
 class _NoMeetupSpot extends StatelessWidget {
-  const _NoMeetupSpot();
+  const _NoMeetupSpot({
+    required this.isLocating,
+    required this.onCreateAtCurrentLocation,
+  });
+
+  final bool isLocating;
+  final VoidCallback onCreateAtCurrentLocation;
 
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
     child: Padding(
-      padding: EdgeInsets.all(32),
+      padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.location_off_outlined, size: 52, color: AppColors.muted),
-          SizedBox(height: 12),
-          Text(
+          const Icon(
+            Icons.add_location_alt_outlined,
+            size: 52,
+            color: AppColors.muted,
+          ),
+          const SizedBox(height: 12),
+          const Text(
             'No tailgate pin is set',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
           ),
-          SizedBox(height: 6),
-          Text(
-            'The meetup location is no longer visible to the crew.',
+          const SizedBox(height: 6),
+          const Text(
+            'Start at your current location, then move the pin to the exact meetup spot.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.muted),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: isLocating ? null : onCreateAtCurrentLocation,
+            icon: const Icon(Icons.my_location_rounded),
+            label: Text(isLocating ? 'Finding location…' : 'Create pin here'),
           ),
         ],
       ),

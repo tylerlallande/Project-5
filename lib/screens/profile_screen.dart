@@ -1,11 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
+import '../features/profile/user_session.dart';
+import '../features/alerts/notification_service.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({
+    super.key,
+    this.session = const UserSession(
+      displayName: 'BayouBlitz member',
+      isGuest: false,
+    ),
+  });
+
+  final UserSession session;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -13,7 +25,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen>
     with AutomaticKeepAliveClientMixin {
-  String _name = 'Alex Tiger';
+  late String _name;
+  late bool _isGuest;
   String _role = 'Game-day coordinator';
   Map<String, bool> _notifications = {
     'Tailgate reminders': true,
@@ -30,6 +43,13 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = widget.session.displayName;
+    _isGuest = widget.session.isGuest;
+  }
 
   Future<void> _editProfile() async {
     var name = _name;
@@ -86,6 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         _name = result.$1;
         _role = result.$2;
       });
+      await UserSession(displayName: _name, isGuest: _isGuest).save();
     }
   }
 
@@ -103,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               Text(
                 food
                     ? 'Choose your dietary preferences. These are not shared with your crew yet.'
-                    : 'Choose your preferences. Notification delivery is not connected yet.',
+                    : 'Choose which device alerts BayouBlitz may send.',
               ),
               const SizedBox(height: 12),
               ...draft.entries.map(
@@ -138,7 +159,31 @@ class _ProfileScreenState extends State<ProfileScreen>
           _notifications = draft;
         }
       });
+      if (!food && draft.values.any((enabled) => enabled)) {
+        await NotificationService.instance.requestPermission();
+      }
     }
+  }
+
+  Future<void> _upgradeGuest() async {
+    await UserSession(displayName: _name, isGuest: true).upgrade();
+    if (!mounted) return;
+    setState(() => _isGuest = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Profile upgraded. Your tailgates and claimed items stay with you.',
+        ),
+      ),
+    );
+  }
+
+  void _signOut() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const WelcomeScreen()),
+      (_) => false,
+    );
+    unawaited(UserSession.clear());
   }
 
   void _showInfo(String title, String message) {
@@ -207,6 +252,13 @@ class _ProfileScreenState extends State<ProfileScreen>
               title: 'Edit profile',
               onTap: _editProfile,
             ),
+            if (_isGuest)
+              _SettingsTile(
+                icon: Icons.verified_user_outlined,
+                title: 'Keep this profile',
+                subtitle: 'Upgrade without losing tailgates or claimed items',
+                onTap: _upgradeGuest,
+              ),
             _SettingsTile(
               icon: Icons.notifications_none_rounded,
               title: 'Notifications',
@@ -263,10 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         const SizedBox(height: 12),
         OutlinedButton.icon(
           key: const Key('sign-out-button'),
-          onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute<void>(builder: (_) => const WelcomeScreen()),
-            (_) => false,
-          ),
+          onPressed: _signOut,
           icon: const Icon(Icons.logout_rounded),
           label: const Text('Sign out'),
         ),

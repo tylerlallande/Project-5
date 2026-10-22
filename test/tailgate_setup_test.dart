@@ -5,14 +5,13 @@ import 'package:tailgating/features/tailgate_setup/join_tailgate_screen.dart';
 import 'package:tailgating/main.dart';
 
 import 'test_map_builder.dart';
+import 'support/enter_guest.dart';
 
 void main() {
   testWidgets('home opens create and join flows', (tester) async {
     await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
 
-    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
-    await tester.tap(find.byKey(const Key('continue-as-guest')));
-    await tester.pumpAndSettle();
+    await enterAsGuest(tester);
     await tester.drag(
       find.byKey(const Key('home-screen')),
       const Offset(0, -700),
@@ -51,6 +50,11 @@ void main() {
     await tester.tap(find.byKey(const Key('create-tailgate-next')));
     await tester.pumpAndSettle();
     expect(find.text('Set the game plan'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('create-location-field')),
+      'Parade Ground',
+    );
 
     await tester.tap(find.byKey(const Key('create-tailgate-next')));
     await tester.pumpAndSettle();

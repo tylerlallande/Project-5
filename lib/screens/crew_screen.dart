@@ -91,7 +91,7 @@ class _CrewScreenState extends State<CrewScreen> {
             IconButton.filledTonal(
               onPressed: () {},
               icon: const Icon(Icons.person_add_alt_1_rounded),
-              tooltip: 'Invite crew',
+              tooltip: '',
             ),
           ],
         ),
@@ -139,7 +139,7 @@ class _CrewScreenState extends State<CrewScreen> {
             suffixIcon: IconButton(
               onPressed: () {},
               icon: const Icon(Icons.arrow_upward_rounded),
-              tooltip: 'Post update',
+              tooltip: '',
             ),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 import '../features/tailgate_setup/tailgate_draft.dart';
+import '../features/alerts/game_day_alert.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -15,6 +16,7 @@ class HomeScreen extends StatefulWidget {
     required this.onCheckInChanged,
     required this.tailgates,
     required this.onOpenEntry,
+    this.alerts = const [],
   });
 
   final ValueChanged<int> onNavigate;
@@ -25,6 +27,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<bool> onCheckInChanged;
   final List<TailgateEntry> tailgates;
   final ValueChanged<TailgateEntry> onOpenEntry;
+  final List<GameDayAlert> alerts;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -32,7 +35,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool get _checkedIn => widget.checkedIn;
-  int get _crewCount => _checkedIn ? 9 : 8;
+  TailgateEntry? get _nextTailgate {
+    final upcoming =
+        widget.tailgates
+            .where(
+              (entry) => !entry.draft.date.isBefore(
+                DateTime.now().subtract(const Duration(days: 1)),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.draft.date.compareTo(b.draft.date));
+    return upcoming.isEmpty ? null : upcoming.first;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +59,8 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               AppHeader(
                 action: IconButton.filledTonal(
-                  tooltip: 'Notifications',
-                  onPressed: () => _showMessage('You’re all caught up.'),
+                  tooltip: '',
+                  onPressed: _showAlerts,
                   icon: const Icon(Icons.notifications_none_rounded),
                 ),
               ),
@@ -102,7 +116,88 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showAlerts() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Game-day alerts',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 12),
+              if (widget.alerts.isEmpty)
+                const Text('You’re all caught up.')
+              else
+                ...widget.alerts.map(
+                  (alert) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(child: Icon(alert.icon)),
+                    title: Text(alert.title),
+                    subtitle: Text(alert.message),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEventCard() {
+    final entry = _nextTailgate;
+    if (entry == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.sports_football_outlined,
+                color: AppColors.purple,
+                size: 36,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'No upcoming tailgate',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Host a tailgate or join a public crew to put your game-day plan here.',
+                style: TextStyle(color: AppColors.muted, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: widget.onHostTailgate,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Host a tailgate'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final now = DateTime.now();
+    final eventDay = DateTime(
+      entry.draft.date.year,
+      entry.draft.date.month,
+      entry.draft.date.day,
+    );
+    final today = DateTime(now.year, now.month, now.day);
+    final days = eventDay.difference(today).inDays;
+    final countdown = days == 0
+        ? 'TODAY'
+        : days == 1
+        ? 'TOMORROW'
+        : 'IN $days DAYS';
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -136,9 +231,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'YOUR NEXT TAILGATE · 4 DAYS',
-                  style: TextStyle(
+                Text(
+                  'YOUR NEXT TAILGATE · $countdown',
+                  style: const TextStyle(
                     color: AppColors.gold,
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
@@ -146,18 +241,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 9),
-                const Text(
-                  'LSU vs. Alabama',
-                  style: TextStyle(
+                Text(
+                  entry.draft.game,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 5),
-                const Text(
-                  'Sat 6:30 PM kickoff · Gumbo & Geaux',
-                  style: TextStyle(
+                Text(
+                  '${_formatDate(entry.draft.date)} · ${entry.draft.kickoff} kickoff · ${entry.draft.name}',
+                  style: const TextStyle(
                     color: Color(0xFFD9CFE8),
                     fontWeight: FontWeight.w600,
                   ),
@@ -171,13 +266,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: _EventStat(
                         label: 'CREW',
-                        value: '$_crewCount Tigers',
+                        value: '${entry.memberCount} going',
                       ),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: _EventStat(
-                        label: 'SUPPLIES',
-                        value: '6 / 8 ready',
+                        label: 'MEETUP',
+                        value: entry.draft.meetupTime,
                       ),
                     ),
                   ],
@@ -205,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(width: 10),
                     IconButton.filled(
-                      tooltip: 'Open map',
+                      tooltip: '',
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.white.withValues(alpha: .13),
                         foregroundColor: Colors.white,
@@ -224,29 +319,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickActions() {
+    final entry = _nextTailgate;
+    if (entry == null) {
+      return const Text(
+        'Quick actions appear after you host or join a tailgate.',
+        style: TextStyle(color: AppColors.muted),
+      );
+    }
     final actions = [
       (
         icon: Icons.checklist_rounded,
         title: 'Bring list',
-        detail: '6 of 8 ready',
+        detail: 'Manage supplies',
         onTap: () => widget.onOpenTailgate(0),
       ),
       (
         icon: Icons.groups_rounded,
         title: 'Crew',
-        detail: '$_crewCount going',
+        detail: '${entry.memberCount} going',
         onTap: () => widget.onNavigate(1),
       ),
       (
         icon: Icons.location_on_rounded,
         title: 'The spot',
-        detail: 'Oak Grove',
+        detail: entry.draft.location,
         onTap: () => widget.onOpenTailgate(1),
       ),
       (
         icon: Icons.campaign_rounded,
         title: 'Updates',
-        detail: '2 new',
+        detail: 'View crew posts',
         onTap: () => widget.onOpenTailgate(2),
       ),
     ];
@@ -307,6 +409,24 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}';
   }
 
   Widget _sectionTitle(String title, String trailing) => Row(
@@ -406,12 +526,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 }
