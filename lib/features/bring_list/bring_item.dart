@@ -31,17 +31,32 @@ class BringItem {
   final bool isPacked;
 
   BringItem copyWith({
+    String? name,
+    int? quantity,
+    BringItemCategory? category,
     String? claimedBy,
     bool clearClaim = false,
     bool? isPacked,
   }) {
     return BringItem(
       id: id,
-      name: name,
-      quantity: quantity,
-      category: category,
+      name: name ?? this.name,
+      quantity: quantity ?? this.quantity,
+      category: category ?? this.category,
       claimedBy: clearClaim ? null : claimedBy ?? this.claimedBy,
       isPacked: isPacked ?? this.isPacked,
     );
   }
+
+  factory BringItem.fromJson(Map<String, dynamic> data) => BringItem(
+    id: data['id'] as String,
+    name: data['name'] as String,
+    quantity: data['quantity'] as int,
+    category: BringItemCategory.values.firstWhere(
+      (value) => value.name == data['category'],
+      orElse: () => BringItemCategory.other,
+    ),
+    claimedBy: data['claimedBy'] as String?,
+    isPacked: data['isPacked'] as bool? ?? false,
+  );
 }

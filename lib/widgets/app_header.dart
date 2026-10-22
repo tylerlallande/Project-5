@@ -16,23 +16,13 @@ class AppHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'BAYOU',
+                'TGATE',
                 style: TextStyle(
-                  fontSize: 23,
-                  height: .9,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.3,
-                  color: AppColors.deepPurple,
-                ),
-              ),
-              Text(
-                'BLITZ',
-                style: TextStyle(
-                  fontSize: 23,
+                  fontSize: 26,
                   height: 1,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.3,
-                  color: AppColors.gold,
+                  color: AppColors.deepPurple,
                 ),
               ),
               SizedBox(height: 5),

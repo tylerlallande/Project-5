@@ -125,7 +125,7 @@ void main() {
     await tester.ensureVisible(find.text('Crew').first);
     await tester.tap(find.text('Crew').first);
     await tester.pumpAndSettle();
-    expect(find.text('9 GOING'), findsOneWidget);
+    expect(find.text('1 GOING'), findsOneWidget);
     expect(find.byType(BackButton), findsOneWidget);
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
@@ -138,7 +138,7 @@ void main() {
     expect(find.text('8 going'), findsAtLeast(1));
     await tester.tap(find.text('Crew').last);
     await tester.pumpAndSettle();
-    expect(find.text('9 GOING'), findsOneWidget);
+    expect(find.text('1 GOING'), findsOneWidget);
     await tester.tap(find.text('Home'));
     await tester.pumpAndSettle();
     await tester.drag(

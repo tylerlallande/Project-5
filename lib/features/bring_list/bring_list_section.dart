@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../tailgate_setup/tailgate_draft.dart';
+import '../tailgate_setup/tailgate_repository.dart';
 import 'bring_item.dart';
 
 enum BringListFilter { all, open, mine, packed }
 
 class BringListSection extends StatefulWidget {
-  const BringListSection({super.key, this.currentUser = 'Alex'});
+  const BringListSection({
+    super.key,
+    required this.currentUser,
+    this.entry,
+    this.repository,
+  });
 
   final String currentUser;
+  final TailgateEntry? entry;
+  final TailgateRepository? repository;
 
   @override
   State<BringListSection> createState() => _BringListSectionState();
@@ -16,36 +25,33 @@ class BringListSection extends StatefulWidget {
 
 class _BringListSectionState extends State<BringListSection> {
   BringListFilter _filter = BringListFilter.all;
-  int _nextId = 5;
-  final List<BringItem> _items = [
-    const BringItem(
-      id: '1',
-      name: 'The gumbo',
-      quantity: 1,
-      category: BringItemCategory.food,
-      claimedBy: 'Jordan',
-      isPacked: true,
-    ),
-    const BringItem(
-      id: '2',
-      name: 'Ice & coolers',
-      quantity: 2,
-      category: BringItemCategory.drinks,
-    ),
-    const BringItem(
-      id: '3',
-      name: 'Game-day playlist',
-      quantity: 1,
-      category: BringItemCategory.other,
-      claimedBy: 'Alex',
-    ),
-    const BringItem(
-      id: '4',
-      name: 'Cornhole',
-      quantity: 1,
-      category: BringItemCategory.games,
-    ),
-  ];
+  final List<BringItem> _items = [];
+  bool _loading = false;
+  bool _saving = false;
+  String? _error;
+
+  bool get _connected => widget.entry != null && widget.repository != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!_connected) return;
+    setState(() => _loading = true);
+    try {
+      final items = await widget.repository!.listBringItems(widget.entry!);
+      if (mounted) {
+        setState(() => _items..replaceRange(0, _items.length, items));
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   List<BringItem> get _visibleItems => switch (_filter) {
     BringListFilter.all => _items,
@@ -79,7 +85,7 @@ class _BringListSectionState extends State<BringListSection> {
             IconButton.filled(
               key: const Key('add-bring-item'),
               tooltip: '',
-              onPressed: _showAddItemDialog,
+              onPressed: _saving || !_connected ? null : _showAddItemDialog,
               icon: const Icon(Icons.add_rounded),
             ),
           ],
@@ -117,7 +123,20 @@ class _BringListSectionState extends State<BringListSection> {
           ),
         ),
         const SizedBox(height: 12),
-        if (visibleItems.isEmpty)
+        if (_error != null)
+          _MessageCard(message: _error!, onRetry: _load)
+        else if (_loading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (!_connected)
+          const _MessageCard(
+            message: 'Host or join a tailgate to create a bring list.',
+          )
+        else if (visibleItems.isEmpty)
           _EmptyFilter(filter: _filter)
         else
           Card(
@@ -132,6 +151,8 @@ class _BringListSectionState extends State<BringListSection> {
                       onClaim: () => _claim(item),
                       onUnclaim: () => _unclaim(item),
                       onPackedChanged: (value) => _setPacked(item, value),
+                      onEdit: () => _showItemDialog(existing: item),
+                      onDelete: () => _delete(item),
                     ),
                     if (index != visibleItems.length - 1)
                       const Divider(height: 1, indent: 68, endIndent: 14),
@@ -151,41 +172,65 @@ class _BringListSectionState extends State<BringListSection> {
     BringListFilter.packed => 'Packed',
   };
 
-  void _claim(BringItem item) {
-    _replace(item, item.copyWith(claimedBy: widget.currentUser));
+  Future<void> _claim(BringItem item) async {
+    await _save(item, item.copyWith(claimedBy: widget.currentUser));
   }
 
-  void _unclaim(BringItem item) {
-    _replace(item, item.copyWith(clearClaim: true, isPacked: false));
+  Future<void> _unclaim(BringItem item) async {
+    await _save(item, item.copyWith(clearClaim: true, isPacked: false));
   }
 
-  void _setPacked(BringItem item, bool value) {
-    _replace(item, item.copyWith(isPacked: value));
+  Future<void> _setPacked(BringItem item, bool value) async {
+    await _save(item, item.copyWith(isPacked: value));
   }
 
-  void _replace(BringItem oldItem, BringItem newItem) {
-    setState(
-      () =>
-          _items[_items.indexWhere((item) => item.id == oldItem.id)] = newItem,
-    );
+  Future<void> _save(BringItem oldItem, BringItem newItem) async {
+    if (!_connected || _saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final saved = await widget.repository!.updateBringItem(
+        widget.entry!,
+        newItem,
+      );
+      if (mounted) {
+        setState(
+          () => _items[_items.indexWhere((item) => item.id == oldItem.id)] =
+              saved,
+        );
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _showAddItemDialog() async {
-    var name = '';
-    var quantityText = '1';
-    var category = BringItemCategory.food;
+    await _showItemDialog();
+  }
+
+  Future<void> _showItemDialog({BringItem? existing}) async {
+    var name = existing?.name ?? '';
+    var quantityText = (existing?.quantity ?? 1).toString();
+    var category = existing?.category ?? BringItemCategory.food;
 
     final item = await showDialog<BringItem>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add to the bring-list'),
+          title: Text(
+            existing == null ? 'Add to the bring-list' : 'Edit bring-list item',
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 key: const Key('new-item-name'),
                 autofocus: true,
+                controller: TextEditingController(text: name),
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(labelText: 'Item name'),
                 onChanged: (value) => name = value,
@@ -240,21 +285,71 @@ class _BringListSectionState extends State<BringListSection> {
                 Navigator.pop(
                   context,
                   BringItem(
-                    id: (_nextId++).toString(),
+                    id: existing?.id ?? '',
                     name: cleanName,
                     quantity: quantity,
                     category: category,
                   ),
                 );
               },
-              child: const Text('Add item'),
+              child: Text(existing == null ? 'Add item' : 'Save changes'),
             ),
           ],
         ),
       ),
     );
 
-    if (item != null && mounted) setState(() => _items.add(item));
+    if (item == null || !mounted || !_connected) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      if (existing == null) {
+        final saved = await widget.repository!.addBringItem(
+          widget.entry!,
+          item,
+        );
+        if (mounted) setState(() => _items.add(saved));
+      } else {
+        final saved = await widget.repository!.updateBringItem(
+          widget.entry!,
+          item.copyWith(
+            claimedBy: existing.claimedBy,
+            isPacked: existing.isPacked,
+          ),
+        );
+        if (mounted) {
+          setState(
+            () =>
+                _items[_items.indexWhere((value) => value.id == existing.id)] =
+                    saved,
+          );
+        }
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _delete(BringItem item) async {
+    if (!_connected || _saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.repository!.deleteBringItem(widget.entry!, item);
+      if (mounted) {
+        setState(() => _items.removeWhere((value) => value.id == item.id));
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 
@@ -265,6 +360,8 @@ class _BringItemTile extends StatelessWidget {
     required this.onClaim,
     required this.onUnclaim,
     required this.onPackedChanged,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   final BringItem item;
@@ -272,6 +369,8 @@ class _BringItemTile extends StatelessWidget {
   final VoidCallback onClaim;
   final VoidCallback onUnclaim;
   final ValueChanged<bool> onPackedChanged;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -309,46 +408,90 @@ class _BringItemTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          if (!isClaimed)
-            OutlinedButton(
-              key: Key('claim-${item.id}'),
-              onPressed: onClaim,
-              child: const Text('Claim'),
-            )
-          else if (isMine)
-            PopupMenuButton<String>(
-              key: Key('bring-item-actions-${item.id}'),
-              tooltip: '',
-              onSelected: (action) {
-                if (action == 'packed') onPackedChanged(!item.isPacked);
-                if (action == 'unclaim') onUnclaim();
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'packed',
-                  child: Text(item.isPacked ? 'Mark unpacked' : 'Mark packed'),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isClaimed)
+                OutlinedButton(
+                  key: Key('claim-${item.id}'),
+                  onPressed: onClaim,
+                  child: const Text('Claim'),
                 ),
-                const PopupMenuItem(
-                  value: 'unclaim',
-                  child: Text('Unclaim item'),
+              if (isClaimed && !isMine)
+                const Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: AppColors.success,
                 ),
-              ],
-              child: Icon(
-                item.isPacked
-                    ? Icons.check_circle_rounded
-                    : Icons.more_vert_rounded,
-                color: item.isPacked ? AppColors.success : AppColors.purple,
-              ),
-            )
-          else
-            const Icon(
-              Icons.check_circle_outline_rounded,
-              color: AppColors.success,
-            ),
+              if (!isClaimed) const SizedBox(width: 4),
+              if (!isClaimed || isMine)
+                PopupMenuButton<String>(
+                  key: Key('bring-item-actions-${item.id}'),
+                  tooltip: '',
+                  onSelected: (action) {
+                    if (action == 'packed') onPackedChanged(!item.isPacked);
+                    if (action == 'unclaim') onUnclaim();
+                    if (action == 'edit') onEdit();
+                    if (action == 'delete') onDelete();
+                  },
+                  itemBuilder: (context) => [
+                    if (isMine)
+                      PopupMenuItem(
+                        value: 'packed',
+                        child: Text(
+                          item.isPacked ? 'Mark unpacked' : 'Mark packed',
+                        ),
+                      ),
+                    if (isMine)
+                      const PopupMenuItem(
+                        value: 'unclaim',
+                        child: Text('Unclaim item'),
+                      ),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit item'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete item'),
+                    ),
+                  ],
+                  child: Icon(
+                    item.isPacked
+                        ? Icons.check_circle_rounded
+                        : Icons.more_vert_rounded,
+                    color: item.isPacked ? AppColors.success : AppColors.purple,
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
   }
+}
+
+class _MessageCard extends StatelessWidget {
+  const _MessageCard({required this.message, this.onRetry});
+  final String message;
+  final VoidCallback? onRetry;
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: AppColors.muted),
+            ),
+          ),
+          if (onRetry != null)
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    ),
+  );
 }
 
 class _EmptyFilter extends StatelessWidget {

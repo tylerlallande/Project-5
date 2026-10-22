@@ -4,8 +4,8 @@ import 'features/map/meetup_map.dart';
 import 'screens/welcome_screen.dart';
 import 'theme/app_theme.dart';
 
-class BayouBlitzApp extends StatelessWidget {
-  const BayouBlitzApp({super.key, this.mapBuilder});
+class TgateApp extends StatelessWidget {
+  const TgateApp({super.key, this.mapBuilder});
 
   final MeetupMapBuilder? mapBuilder;
 
@@ -13,7 +13,7 @@ class BayouBlitzApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'BayouBlitz',
+      title: 'Tgate',
       theme: AppTheme.light,
       home: WelcomeScreen(mapBuilder: mapBuilder),
     );
