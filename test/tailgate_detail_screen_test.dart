@@ -8,6 +8,7 @@ import 'package:tailgating/features/map/meetup_spot_controller.dart';
 import 'package:tailgating/main.dart';
 
 import 'test_map_builder.dart';
+import 'support/enter_guest.dart';
 
 MeetupSpotController createSpotController() => MeetupSpotController(
   InMemoryMapRepository(developmentMeetupSpots),
@@ -30,9 +31,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
-    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
-    await tester.tap(find.byKey(const Key('continue-as-guest')));
-    await tester.pumpAndSettle();
+    await enterAsGuest(tester);
 
     await tester.tap(find.text('Bring list'));
     await tester.pumpAndSettle();

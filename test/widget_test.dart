@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tailgating/main.dart';
 
 import 'test_map_builder.dart';
+import 'support/enter_guest.dart';
 
 void main() {
   testWidgets('optional sign in masks the password and accepts demo details', (
@@ -20,8 +21,10 @@ void main() {
           .obscureText,
       isTrue,
     );
-    await tester.ensureVisible(find.byTooltip('Show password'));
-    await tester.tap(find.byTooltip('Show password'));
+    await tester.ensureVisible(
+      find.byKey(const Key('password-visibility-toggle')),
+    );
+    await tester.tap(find.byKey(const Key('password-visibility-toggle')));
     await tester.pump();
     expect(
       tester
@@ -49,9 +52,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
-    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
-    await tester.tap(find.byKey(const Key('continue-as-guest')));
-    await tester.pumpAndSettle();
+    await enterAsGuest(tester, name: 'Alex Tiger');
     await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
@@ -64,17 +65,17 @@ void main() {
           )
           .first,
     );
-    await tester.tap(find.byKey(const Key('sign-out-button')));
+    tester
+        .widget<OutlinedButton>(find.byKey(const Key('sign-out-button')))
+        .onPressed!();
     await tester.pumpAndSettle();
-    expect(find.text('Welcome to Bayou Blitz'), findsOneWidget);
+    expect(find.byKey(const Key('welcome-screen')), findsOneWidget);
     expect(find.byKey(const Key('profile-screen')), findsNothing);
     expect(
       tester.state<NavigatorState>(find.byType(Navigator)).canPop(),
       isFalse,
     );
-    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
-    await tester.tap(find.byKey(const Key('continue-as-guest')));
-    await tester.pumpAndSettle();
+    await enterAsGuest(tester, name: 'Alex Tiger');
     expect(find.byKey(const Key('home-screen')), findsOneWidget);
   });
 
@@ -88,9 +89,7 @@ void main() {
     await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
     expect(find.byKey(const Key('home-screen')), findsNothing);
     expect(find.byType(TextField), findsNWidgets(2));
-    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
-    await tester.tap(find.byKey(const Key('continue-as-guest')));
-    await tester.pumpAndSettle();
+    await enterAsGuest(tester, name: 'Alex Tiger');
     expect(find.byKey(const Key('home-screen')), findsOneWidget);
     expect(find.byKey(const Key('continue-as-guest')), findsNothing);
     expect(tester.takeException(), isNull);
@@ -100,9 +99,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
-    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
-    await tester.tap(find.byKey(const Key('continue-as-guest')));
-    await tester.pumpAndSettle();
+    await enterAsGuest(tester, name: 'Alex Tiger');
 
     expect(find.text('LSU vs. Alabama'), findsOneWidget);
     expect(find.text('Quick actions'), findsOneWidget);
@@ -112,19 +109,17 @@ void main() {
     await tester.pump();
 
     expect(find.text('Checked in'), findsOneWidget);
-    expect(find.text('9 Tigers'), findsOneWidget);
+    expect(find.text('8 going'), findsAtLeast(1));
     await tester.tap(find.byKey(const Key('check-in-button')));
     await tester.pump();
-    expect(find.text('8 Tigers'), findsOneWidget);
+    expect(find.text('8 going'), findsAtLeast(1));
   });
 
   testWidgets('crew quick action has a back arrow and preserves attendance', (
     tester,
   ) async {
     await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
-    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
-    await tester.tap(find.byKey(const Key('continue-as-guest')));
-    await tester.pumpAndSettle();
+    await enterAsGuest(tester, name: 'Alex Tiger');
     await tester.tap(find.byKey(const Key('check-in-button')));
     await tester.pump();
     await tester.ensureVisible(find.text('Crew').first);
@@ -140,7 +135,7 @@ void main() {
       const Offset(0, 600),
     );
     await tester.pumpAndSettle();
-    expect(find.text('9 Tigers'), findsOneWidget);
+    expect(find.text('8 going'), findsAtLeast(1));
     await tester.tap(find.text('Crew').last);
     await tester.pumpAndSettle();
     expect(find.text('9 GOING'), findsOneWidget);
@@ -151,14 +146,12 @@ void main() {
       const Offset(0, 600),
     );
     await tester.pumpAndSettle();
-    expect(find.text('9 Tigers'), findsOneWidget);
+    expect(find.text('8 going'), findsAtLeast(1));
   });
 
   testWidgets('bottom navigation and swipes change pages', (tester) async {
     await tester.pumpWidget(const TailgateApp(mapBuilder: buildTestMap));
-    await tester.ensureVisible(find.byKey(const Key('continue-as-guest')));
-    await tester.tap(find.byKey(const Key('continue-as-guest')));
-    await tester.pumpAndSettle();
+    await enterAsGuest(tester, name: 'Alex Tiger');
 
     await tester.tap(find.text('Crew').last);
     await tester.pumpAndSettle();

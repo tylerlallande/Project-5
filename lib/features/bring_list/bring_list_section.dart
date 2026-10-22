@@ -78,7 +78,7 @@ class _BringListSectionState extends State<BringListSection> {
             ),
             IconButton.filled(
               key: const Key('add-bring-item'),
-              tooltip: 'Add an item',
+              tooltip: '',
               onPressed: _showAddItemDialog,
               icon: const Icon(Icons.add_rounded),
             ),
@@ -317,7 +317,7 @@ class _BringItemTile extends StatelessWidget {
             )
           else if (isMine)
             PopupMenuButton<String>(
-              tooltip: 'Item actions',
+              tooltip: '',
               onSelected: (action) {
                 if (action == 'packed') onPackedChanged(!item.isPacked);
                 if (action == 'unclaim') onUnclaim();

@@ -187,6 +187,8 @@ void main() {
       );
       expect(find.text('hidden-private'), findsNothing);
       expect(find.text('joined-private'), findsOneWidget);
+      await tester.ensureVisible(find.text('open-public'));
+      await tester.pumpAndSettle();
       expect(find.text('open-public'), findsOneWidget);
     },
   );
@@ -223,6 +225,10 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('create-tailgate-next')));
       await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('create-location-field')),
+        'Parade Ground',
+      );
       await tester.tap(find.byKey(const Key('create-tailgate-next')));
       await tester.pumpAndSettle();
       expect(find.text('Public · anyone can join'), findsOneWidget);

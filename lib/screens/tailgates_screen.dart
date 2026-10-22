@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../features/tailgate_setup/tailgate_draft.dart';
+import '../features/tailgate_setup/tailgate_repository.dart';
 import '../theme/app_theme.dart';
 
-class TailgatesScreen extends StatelessWidget {
+class TailgatesScreen extends StatefulWidget {
   const TailgatesScreen({
     super.key,
     required this.entries,
@@ -16,6 +17,11 @@ class TailgatesScreen extends StatelessWidget {
     this.busy = false,
     this.error,
     this.onRefresh,
+    this.onComplete,
+    this.onArchive,
+    this.onDelete,
+    this.onReport,
+    this.onManageRequests,
   });
   final List<TailgateEntry> entries;
   final ValueChanged<TailgateEntry> onJoin;
@@ -27,12 +33,42 @@ class TailgatesScreen extends StatelessWidget {
   final bool busy;
   final String? error;
   final VoidCallback? onRefresh;
+  final ValueChanged<TailgateEntry>? onComplete;
+  final ValueChanged<TailgateEntry>? onArchive;
+  final ValueChanged<TailgateEntry>? onDelete;
+  final ValueChanged<TailgateEntry>? onReport;
+  final ValueChanged<TailgateEntry>? onManageRequests;
+
+  @override
+  State<TailgatesScreen> createState() => _TailgatesScreenState();
+}
+
+class _TailgatesScreenState extends State<TailgatesScreen> {
+  String _query = '';
+  List<TailgateEntry> get entries => widget.entries;
+  ValueChanged<TailgateEntry> get onJoin => widget.onJoin;
+  ValueChanged<TailgateEntry> get onLeave => widget.onLeave;
+  ValueChanged<TailgateEntry> get onOpen => widget.onOpen;
+  VoidCallback get onHost => widget.onHost;
+  VoidCallback get onInvite => widget.onInvite;
+  bool get loading => widget.loading;
+  bool get busy => widget.busy;
+  String? get error => widget.error;
+  VoidCallback? get onRefresh => widget.onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final mine = entries.where((entry) => entry.joined).toList();
     final discover = entries
-        .where((entry) => entry.draft.isPublic && !entry.joined)
+        .where(
+          (entry) =>
+              entry.draft.isPublic &&
+              !entry.joined &&
+              (_query.isEmpty ||
+                  entry.draft.name.toLowerCase().contains(_query) ||
+                  entry.draft.game.toLowerCase().contains(_query) ||
+                  entry.draft.location.toLowerCase().contains(_query)),
+        )
         .toList();
     return ListView(
       key: const Key('tailgates-screen'),
@@ -44,7 +80,7 @@ class TailgatesScreen extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: IconButton(
               onPressed: busy || loading ? null : onRefresh,
-              tooltip: 'Refresh tailgates',
+              tooltip: '',
               icon: const Icon(Icons.refresh),
             ),
           ),
@@ -91,6 +127,17 @@ class TailgatesScreen extends StatelessWidget {
         const Text(
           'Anyone can join—no invite code needed.',
           style: TextStyle(color: AppColors.muted),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('public-tailgate-search'),
+          decoration: const InputDecoration(
+            labelText: 'Search public tailgates',
+            hintText: 'Game, crew, or location',
+            prefixIcon: Icon(Icons.search_rounded),
+          ),
+          onChanged: (value) =>
+              setState(() => _query = value.trim().toLowerCase()),
         ),
         const SizedBox(height: 12),
         if (!loading && discover.isEmpty)
@@ -159,6 +206,20 @@ class TailgatesScreen extends StatelessWidget {
               '${entry.hosted ? 'Hosting · ' : ''}${entry.draft.isPublic ? 'Public' : 'Private · invite only'}',
               style: const TextStyle(color: AppColors.purple),
             ),
+            if (entry.membershipStatus == MembershipStatus.pending)
+              const Text(
+                'Waiting for host approval',
+                style: TextStyle(color: AppColors.purple),
+              ),
+            if (entry.membershipStatus == MembershipStatus.waitlisted)
+              Text(
+                'Waitlisted · ${entry.waitlistCount} waiting',
+                style: const TextStyle(color: AppColors.purple),
+              ),
+            if (entry.draft.capacity != null)
+              Text(
+                '${entry.memberCount} / ${entry.draft.capacity} spots filled',
+              ),
             const SizedBox(height: 12),
             entry.joined
                 ? Wrap(
@@ -177,12 +238,61 @@ class TailgatesScreen extends StatelessWidget {
                         icon: const Icon(Icons.logout, size: 18),
                         label: const Text('Leave tailgate'),
                       ),
+                      if (entry.hosted &&
+                          entry.status == TailgateStatus.upcoming)
+                        TextButton(
+                          onPressed: busy
+                              ? null
+                              : () => widget.onComplete?.call(entry),
+                          child: const Text('Mark completed'),
+                        ),
+                      if (entry.hosted && entry.pendingCount > 0)
+                        TextButton.icon(
+                          onPressed: busy
+                              ? null
+                              : () => widget.onManageRequests?.call(entry),
+                          icon: const Icon(Icons.how_to_reg_outlined),
+                          label: Text('Review ${entry.pendingCount}'),
+                        ),
+                      if (entry.hosted &&
+                          entry.status == TailgateStatus.completed)
+                        TextButton(
+                          onPressed: busy
+                              ? null
+                              : () => widget.onArchive?.call(entry),
+                          child: const Text('Archive'),
+                        ),
+                      if (entry.hosted &&
+                          (entry.status == TailgateStatus.completed ||
+                              entry.status == TailgateStatus.archived))
+                        TextButton(
+                          onPressed: busy
+                              ? null
+                              : () => widget.onDelete?.call(entry),
+                          child: const Text('Delete'),
+                        ),
                     ],
                   )
-                : FilledButton(
-                    key: Key('join-public-${entry.id}'),
-                    onPressed: busy ? null : () => onJoin(entry),
-                    child: const Text('Join tailgate'),
+                : Wrap(
+                    spacing: 8,
+                    children: [
+                      FilledButton(
+                        key: Key('join-public-${entry.id}'),
+                        onPressed: busy ? null : () => onJoin(entry),
+                        child: Text(
+                          entry.membershipStatus == MembershipStatus.pending
+                              ? 'Approval pending'
+                              : entry.membershipStatus ==
+                                    MembershipStatus.waitlisted
+                              ? 'On waitlist'
+                              : 'Join tailgate',
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => widget.onReport?.call(entry),
+                        child: const Text('Report or block'),
+                      ),
+                    ],
                   ),
           ],
         ),
@@ -192,8 +302,13 @@ class TailgatesScreen extends StatelessWidget {
 }
 
 class TailgateOverviewScreen extends StatelessWidget {
-  const TailgateOverviewScreen({super.key, required this.entry});
+  const TailgateOverviewScreen({
+    super.key,
+    required this.entry,
+    this.repository,
+  });
   final TailgateEntry entry;
+  final TailgateRepository? repository;
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(entry.draft.name)),
@@ -239,7 +354,166 @@ class TailgateOverviewScreen extends StatelessWidget {
             title: const Text('Invite code'),
             subtitle: SelectableText(entry.code),
           ),
+        if (entry.joined && repository != null)
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => TailgatePhotoRecapScreen(
+                  entry: entry,
+                  repository: repository!,
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.photo_library_outlined),
+            label: const Text('Open photo recap'),
+          ),
       ],
     ),
+  );
+}
+
+class TailgatePhotoRecapScreen extends StatefulWidget {
+  const TailgatePhotoRecapScreen({
+    super.key,
+    required this.entry,
+    required this.repository,
+  });
+
+  final TailgateEntry entry;
+  final TailgateRepository repository;
+
+  @override
+  State<TailgatePhotoRecapScreen> createState() =>
+      _TailgatePhotoRecapScreenState();
+}
+
+class _TailgatePhotoRecapScreenState extends State<TailgatePhotoRecapScreen> {
+  List<TailgatePhoto> _photos = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final photos = await widget.repository.listPhotos(widget.entry);
+      if (mounted) setState(() => _photos = photos);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _add() async {
+    var url = '';
+    var caption = '';
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add a recap photo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              decoration: const InputDecoration(labelText: 'Photo URL'),
+              keyboardType: TextInputType.url,
+              onChanged: (value) => url = value,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              maxLength: 200,
+              decoration: const InputDecoration(labelText: 'Caption'),
+              onChanged: (value) => caption = value,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Add photo'),
+          ),
+        ],
+      ),
+    );
+    if (submitted != true || url.trim().isEmpty) return;
+    try {
+      final photos = await widget.repository.addPhoto(
+        widget.entry,
+        url.trim(),
+        caption.trim(),
+      );
+      if (mounted) setState(() => _photos = photos);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text('${widget.entry.draft.name} recap')),
+    floatingActionButton: FloatingActionButton.extended(
+      onPressed: _add,
+      icon: const Icon(Icons.add_photo_alternate_outlined),
+      label: const Text('Add photo'),
+    ),
+    body: _loading
+        ? const Center(child: CircularProgressIndicator())
+        : RefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                if (_error != null)
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                if (_photos.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 60),
+                    child: Center(
+                      child: Text('No recap photos yet. Add the first one.'),
+                    ),
+                  ),
+                ..._photos.map(
+                  (photo) => Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: Image.network(
+                            photo.url,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const Center(
+                              child: Icon(Icons.broken_image_outlined),
+                            ),
+                          ),
+                        ),
+                        if (photo.caption.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(photo.caption),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 80),
+              ],
+            ),
+          ),
   );
 }

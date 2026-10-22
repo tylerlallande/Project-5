@@ -7,6 +7,7 @@ import '../map/map_provider_config.dart';
 import '../map/meetup_map.dart';
 import '../map/meetup_spot.dart';
 import '../map/meetup_spot_controller.dart';
+import '../tailgate_setup/tailgate_draft.dart';
 
 class TailgateDetailScreen extends StatelessWidget {
   const TailgateDetailScreen({
@@ -16,6 +17,8 @@ class TailgateDetailScreen extends StatelessWidget {
     required this.mapProviderConfig,
     this.mapBuilder,
     this.directionsLauncher = openDirections,
+    this.entry,
+    this.currentUser = 'Crew member',
   });
 
   final int initialTab;
@@ -23,6 +26,8 @@ class TailgateDetailScreen extends StatelessWidget {
   final MapProviderConfig mapProviderConfig;
   final MeetupMapBuilder? mapBuilder;
   final DirectionsLauncher directionsLauncher;
+  final TailgateEntry? entry;
+  final String currentUser;
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +36,10 @@ class TailgateDetailScreen extends StatelessWidget {
       initialIndex: initialTab.clamp(0, 2),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Gumbo & Geaux'),
+          title: Text(entry?.draft.name ?? 'Tailgate'),
           actions: [
             IconButton(
-              tooltip: 'Tailgate options',
+              tooltip: '',
               onPressed: () {},
               icon: const Icon(Icons.more_horiz_rounded),
             ),
@@ -42,7 +47,7 @@ class TailgateDetailScreen extends StatelessWidget {
         ),
         body: Column(
           children: [
-            _TailgateSummary(controller: meetupSpotController),
+            _TailgateSummary(controller: meetupSpotController, entry: entry),
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 8, 20, 8),
               child: _TailgateTabBar(),
@@ -51,7 +56,7 @@ class TailgateDetailScreen extends StatelessWidget {
               child: TabBarView(
                 key: Key('tailgate-tab-view'),
                 children: [
-                  const _BringTab(),
+                  _BringTab(currentUser: currentUser),
                   _SpotTab(
                     controller: meetupSpotController,
                     providerConfig: mapProviderConfig,
@@ -70,9 +75,10 @@ class TailgateDetailScreen extends StatelessWidget {
 }
 
 class _TailgateSummary extends StatelessWidget {
-  const _TailgateSummary({required this.controller});
+  const _TailgateSummary({required this.controller, this.entry});
 
   final MeetupSpotController controller;
+  final TailgateEntry? entry;
 
   @override
   Widget build(BuildContext context) {
@@ -89,9 +95,9 @@ class _TailgateSummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'LSU VS. ALABAMA',
-            style: TextStyle(
+          Text(
+            (entry?.draft.game ?? 'TAILGATE').toUpperCase(),
+            style: const TextStyle(
               color: AppColors.gold,
               fontSize: 11,
               fontWeight: FontWeight.w900,
@@ -99,9 +105,11 @@ class _TailgateSummary extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 7),
-          const Text(
-            'Saturday · 6:30 PM kickoff',
-            style: TextStyle(
+          Text(
+            entry == null
+                ? 'Game details unavailable'
+                : '${entry!.draft.date.month}/${entry!.draft.date.day}/${entry!.draft.date.year} · ${entry!.draft.kickoff} kickoff',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.w900,
@@ -136,9 +144,9 @@ class _TailgateSummary extends StatelessWidget {
                 size: 17,
               ),
               const SizedBox(width: 5),
-              const Text(
-                '8 going',
-                style: TextStyle(
+              Text(
+                '${entry?.memberCount ?? 0} going',
+                style: const TextStyle(
                   color: Color(0xFFD9CFE8),
                   fontWeight: FontWeight.w600,
                 ),
@@ -184,14 +192,16 @@ class _TailgateTabBar extends StatelessWidget {
 }
 
 class _BringTab extends StatelessWidget {
-  const _BringTab();
+  const _BringTab({required this.currentUser});
+
+  final String currentUser;
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      key: Key('tailgate-bring-content'),
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 30),
-      child: BringListSection(),
+    return SingleChildScrollView(
+      key: const Key('tailgate-bring-content'),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
+      child: BringListSection(currentUser: currentUser),
     );
   }
 }
@@ -400,7 +410,7 @@ class _UpdatesTabState extends State<_UpdatesTab> {
               ),
               suffixIcon: IconButton(
                 key: const Key('post-tailgate-update'),
-                tooltip: 'Post update',
+                tooltip: '',
                 onPressed: _postUpdate,
                 icon: const Icon(Icons.arrow_upward_rounded),
               ),
