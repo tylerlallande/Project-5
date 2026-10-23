@@ -135,8 +135,6 @@ flutter build web --release
 
 ## QA and testing
 
-QA lead: Brandon Avila
-
 ### Automated tests
 
 Run both suites before opening or merging a pull request:
