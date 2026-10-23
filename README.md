@@ -133,16 +133,39 @@ flutter test
 flutter build web --release
 ```
 
-## Getting Started
+## QA and testing
 
-This project is a starting point for a Flutter application.
+QA lead: Brandon Avila
 
-A few resources to get you started if this is your first Flutter project:
+### Automated tests
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Run both suites before opening or merging a pull request:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```sh
+python -m unittest discover -s server -v   # backend (17 tests)
+flutter test                               # Flutter app (32 tests)
+```
+
+CI runs `flutter analyze`, `flutter test`, and a release web build on every push
+and pull request. Don't merge a PR with a failing check.
+
+### Manual smoke test
+
+Run the server and the web app locally (see above), then check:
+
+1. Create a public tailgate. The host is joined automatically.
+2. In a second browser, find the tailgate and join it. Tap Refresh on the
+   first browser and confirm the new member shows up.
+3. Create a private tailgate and join it using only the invite code.
+4. Add items to the bring list, claim one from the other browser, and confirm
+   the claim persists after a refresh.
+5. Set a capacity of 1, join from a second browser, and confirm the guest lands
+   on the waitlist.
+6. Have the host leave while members remain and confirm hosting transfers.
+7. Leave as the last member and confirm the app asks before deleting.
+8. Open the Map tab and confirm the meetup spot loads.
+
+### Reporting a bug
+
+Open a GitHub issue with the steps to reproduce, what you expected, what
+happened, and the browser or device you used.
